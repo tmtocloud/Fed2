@@ -345,8 +345,88 @@ function FEDUI.buildMovementButtons()
   
   FEDUI.btnFuel:setStyleSheet(buttonCSS)
   FEDUI.btnFuel:setClickCallback("FEDUI.buyFuel")
+  
+  ------------- Work Button --------------------------------
+  FEDUI.btnWork = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnWork",
+      x       = "100%+160px",
+      y       = 127,
+      width   = 25,
+      height  = 20,
+      message = "<center>W</center>"
+    },
+    FEDUI.mapCommandsContainer
+  )
+  
+  FEDUI.btnWork:setStyleSheet(buttonCSS)
+  FEDUI.btnWork:setClickCallback("FEDUI.work")
+  
+  ------------- Collect Button -------------------------------
+  FEDUI.btnCollect = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnCollect",
+      x       = "100%+187px",
+      y       = 127,
+      width   = 25,
+      height  = 20,
+      message = "<center>C</center>"
+    },
+    FEDUI.mapCommandsContainer
+  )
+  
+  FEDUI.btnCollect:setStyleSheet(buttonCSS)
+  FEDUI.btnCollect:setClickCallback("FEDUI.collect")
 
-  -------------- Board Button -------------------------------------
+  ------------- Deliver Button -------------------------------
+  FEDUI.btnDeliver = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnDeliver",
+      x       = "100%+214px",
+      y       = 127,
+      width   = 25,
+      height  = 20,
+      message = "<center>D</center>"
+    },
+    FEDUI.mapCommandsContainer
+  )
+  
+  FEDUI.btnDeliver:setStyleSheet(buttonCSS)
+  FEDUI.btnDeliver:setClickCallback("FEDUI.deliver")
+
+  ------------- Score Button -------------------------------
+  FEDUI.btnScore = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnScore",
+      x       = "100%+173px",
+      y       = 100,
+      width   = 25,
+      height  = 20,
+      message = "<center>SC</center>"
+    },
+    FEDUI.mapCommandsContainer
+  )
+  
+  FEDUI.btnScore:setStyleSheet(buttonCSS)
+  FEDUI.btnScore:setClickCallback("FEDUI.score")
+
+  ------------- Status Button -------------------------------
+  FEDUI.btnStatus = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnStatus",
+      x       = "100%+200px",
+      y       = 100,
+      width   = 25,
+      height  = 20,
+      message = "<center>ST</center>"
+    },
+    FEDUI.mapCommandsContainer
+  )
+  
+  FEDUI.btnStatus:setStyleSheet(buttonCSS)
+  FEDUI.btnStatus:setClickCallback("FEDUI.status")
+
+  -------------- Board Button --------------------------------
   FEDUI.btnBoard = Geyser.Label:new(
     {
       name    = "FEDUI.btnBoard",
@@ -393,6 +473,11 @@ function FEDUI.toggleMovementButtons()
     FEDUI.btnShowHide:echo("<center>Show Buttons</center>")
     FEDUI.btnBoard:hide()
     FEDUI.btnFuel:hide()
+    FEDUI.btnWork:hide()
+    FEDUI.btnCollect:hide()
+    FEDUI.btnDeliver:hide()
+    FEDUI.btnScore:hide()
+    FEDUI.btnStatus:hide()
     FEDUI.movement.visible = false
   else
     FEDUI.cardinalBox:show()
@@ -401,6 +486,11 @@ function FEDUI.toggleMovementButtons()
     FEDUI.btnShowHide:echo("<center>Hide Buttons</center>")
     FEDUI.btnBoard:show()
     FEDUI.btnFuel:show()
+    FEDUI.btnWork:show()
+    FEDUI.btnCollect:show()
+    FEDUI.btnDeliver:show()
+    FEDUI.btnScore:show()
+    FEDUI.btnStatus:show()
     FEDUI.movement.visible = true
   end
 end
@@ -431,8 +521,8 @@ function FEDUI.onGMCPRoomInfo()
   end
 
   -- Detect shuttlepad or orbit and add board to valid exits
-  if table.contains(gmcp.room.info.flags, "shuttlepad") or table.contains(gmcp.room.info.flags, "orbit") then table.insert(exits, "board") end
-  
+  if table.contains(gmcp.room.info.flags, "shuttlepad") or table.contains(gmcp.room.info.flags, "orbit") or gmcp.room.info.orbit then table.insert(exits, "board") end
+
   for dir, dirData in pairs(FEDUI.movement.directions) do
     if table.contains(exits, dir) then
       dirData.button:setStyleSheet(FEDUI.movement.buttonCSS)
@@ -512,4 +602,24 @@ end
 
 function FEDUI.buyFuel()
   send("buy fuel")
+end
+
+function FEDUI.work()
+  send("work")
+end
+
+function FEDUI.collect()
+  send("collect")
+end
+
+function FEDUI.deliver()
+  send("deliver")
+end
+
+function FEDUI.score()
+  send("score")
+end
+
+function FEDUI.status()
+  send("status")
 end
