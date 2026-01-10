@@ -1,3 +1,5 @@
+-- This is a trigger, with regex: (\d+)\.\s+(?:From|From The)\s+(.+?)\s+(?:to|to The)\s+(.+?)\s+-\s+.+?\s+-\s+(\d+)gtu\s+(\d+)ig
+
 local function rpad(str, len)
   str = tostring(str)
   local pad = len - #str
