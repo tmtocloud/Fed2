@@ -303,6 +303,7 @@ function FEDUI.buildUI()
   FEDUI.buildHeader()
   FEDUI.buildTabs()
   FEDUI.popUI()
+  -- *************the two lines below are the only tmtocloud edits to this file***********
   FEDUI.buildMovementButtons()
   FEDUI.registerGMCPHandlers()
   FEDUI.outputCommodities()
