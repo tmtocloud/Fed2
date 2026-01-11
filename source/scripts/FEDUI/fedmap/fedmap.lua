@@ -1,0 +1,1 @@
+fedmap = fedmap or {}
