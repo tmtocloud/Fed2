@@ -1,0 +1,2 @@
+--takes incoming chat and echoes it to the dedicated chat console window
+--does not currently handle XT chat
