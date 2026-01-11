@@ -223,7 +223,7 @@ function FEDUI.buildTabs()
     width = "100%",
     height = "100%",
     tabBarHeight = "10%",
-    tabs = {"Comm", "Cargo"},
+    tabs = {"Comm", "Cargo","Commerce"},
     activeTabStyle = activeTabCSS,
     inactiveTabStyle = inactiveTabCSS,
     footerStyle = footerCSS,
@@ -280,7 +280,6 @@ function FEDUI.popUI()
     fontSize = textSize,
     color = "black",
   }, FEDUI.tabBottomRight.Commcenter)
-  --FEDUI.chatWindow:echo("chat initalized\n")
     
   --put cargo console in cargo tab
   FEDUI.cargoWindow = Geyser.MiniConsole:new({
@@ -293,8 +292,18 @@ function FEDUI.popUI()
     fontSize = textSize,
     color = "black",
   }, FEDUI.tabBottomRight.Cargocenter)
-  --FEDUI.cargoWindow:echo("cargo initalized\n")
   
+  --put commerce console in commerce tab
+  FEDUI.commerceWindow = Geyser.MiniConsole:new({
+    name = "FEDUI.commerceWindow",
+    x = "0%", y = "0%",
+    width = "100%",
+    height = "100%",
+    autoWrap = true,
+    scrollBar = false,
+    fontSize = textSize,
+    color = "black",
+  }, FEDUI.tabBottomRight.Commercecenter)
 end
 
 --===[ build the UI at connection ]===--
@@ -303,7 +312,6 @@ function FEDUI.buildUI()
   FEDUI.buildHeader()
   FEDUI.buildTabs()
   FEDUI.popUI()
-  -- *************the two lines below are the only tmtocloud edits to this file***********
   FEDUI.buildMovementButtons()
   FEDUI.registerGMCPHandlers()
   FEDUI.outputCommodities()
@@ -320,5 +328,5 @@ function FEDUI.onInstall(event, package, path)
   end
 end
 
-registerAnonymousEventHandler("sysConnectionEvent", "FEDUI.buildUI()")
+registerAnonymousEventHandler("sysConnectionEvent", FEDUI.buildUI)
 registerAnonymousEventHandler("sysInstallPackage", FEDUI.onInstall)
