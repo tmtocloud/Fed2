@@ -331,7 +331,7 @@ table.insert(FEDUI.commerce.data, {
 })
 
 FEDUI.commerce.lastLineWasPrice = true  -- Flag for blank line trigger
---deleteLine()</script>
+deleteLine()</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -369,6 +369,18 @@ local function rpad(str, len)
   return str:sub(1, len)
 end
 
+-- 1. PRE-CALCULATE BEST PRICES
+local bestBuyPrice = math.huge
+local bestSellPrice = -1
+
+for _, item in ipairs(FEDUI.commerce.data) do
+  if item.action == "selling" then -- Station sells, we BUY
+    if item.price &lt; bestBuyPrice then bestBuyPrice = item.price end
+  elseif item.action == "buying" then -- Station buys, we SELL
+    if item.price &gt; bestSellPrice then bestSellPrice = item.price end
+  end
+end
+
 -- Sort by price
 table.sort(FEDUI.commerce.data, function(a, b)
   return a.price &lt; b.price
@@ -388,7 +400,8 @@ for _, item in ipairs(FEDUI.commerce.data) do
     actionBtn = "&lt;yellow&gt;[BUY]&lt;reset&gt; "
   end
   
-  FEDUI.tradingWindow:cecho(rpad(item.system, 9) .. " ")
+  FEDUI.tradingWindow:cechoLink(rpad(item.system, 9),function() send("j " .. item.system) end,"Jump to: " .. item.system,true)
+  FEDUI.tradingWindow:cecho(" ")
   
   -- Clickable planet name (truncated to 13 chars)
   local planetDisplay = rpad(item.planet:sub(1, 13), 13)
@@ -411,11 +424,28 @@ for _, item in ipairs(FEDUI.commerce.data) do
   )
   
   FEDUI.tradingWindow:cecho(" " .. rpad(item.quantity, 5) .. " ")
-  FEDUI.tradingWindow:cecho(rpad(item.price .. "ig", 6) .. "\n")
+  -- Highlight the price in green if it's the best price point
+  local priceStr = rpad(item.price .. "ig", 6)
+  if (item.action == "selling" and item.price == bestBuyPrice) or 
+     (item.action == "buying" and item.price == bestSellPrice) then
+    FEDUI.tradingWindow:cecho("&lt;green&gt;" .. priceStr .. "&lt;reset&gt;\n")
+  else
+    FEDUI.tradingWindow:cecho("&lt;white&gt;" .. priceStr .. "&lt;reset&gt;\n")
+  end
 end
 
-FEDUI.tradingWindow:cecho("\n&lt;white&gt;" .. #FEDUI.commerce.data .. " exchanges\n")
---deleteLine()</script>
+-- 3. FOOTER WITH PROFIT CALCULATION
+local profitMsg = ""
+if bestBuyPrice ~= math.huge and bestSellPrice ~= -1 then
+  local delta = bestSellPrice - bestBuyPrice
+  if delta &gt; 0 then
+    profitMsg = string.format(" | &lt;green&gt;Best Profit: %dig/ton&lt;reset&gt;", delta)
+  else
+    profitMsg = " | &lt;red&gt;No Profit Delta&lt;reset&gt;"
+  end
+end
+
+FEDUI.tradingWindow:cecho("\n&lt;white&gt;" .. #FEDUI.commerce.data .. " exchanges" .. profitMsg .. "\n")</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
