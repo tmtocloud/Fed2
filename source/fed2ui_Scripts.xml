@@ -2549,37 +2549,23 @@ function FEDUI.showCommodityMenu()
       name   = "FEDUI.commodityPopup",
       x      = "10%",
       y      = 30,
-      width  = 200,
-      height = 300,
+      width  = 220,
+      height = 400,
     },
     FEDUI.tradingContainer
-  ) 
-  
-  --FEDUI.commodityPopup:setStyleSheet([[
-  --  background-color: rgba(30, 30, 35, 250);
-  --  border: 2px solid rgba(120, 120, 130, 255);
-  --]])
-  
-  local scrollBox = Geyser.ScrollBox:new(
-    {
-      name   = "commodityScroll",
-      x      = 0,
-      y      = 0,
-      width  = "100%",
-      height = "100%",
-    },
-    FEDUI.commodityPopup
   )
   
   -- Use MiniConsole for scrollable list instead
-  local commodityConsole = Geyser.MiniConsole:new({
-    name = "commodityConsole",
-    x = 0, y = 0,
+  local commodityBox = Geyser.ScrollBox:new({
+    name = "commodityBox",
+    x = 0,
+    y = 0,
     width = "100%",
     height = "100%",
     fontSize = 10,
+    backgroundColor = "black",
   }, FEDUI.commodityPopup)
-  
+
   -- Convert to sorted array
   local commodityList = {}
   for commodity, price in pairs(FEDUI.CommoditiesBasePrice) do
@@ -2587,21 +2573,36 @@ function FEDUI.showCommodityMenu()
   end
   table.sort(commodityList, function(a, b) return a.name &lt; b.name end)
   
-  -- Display as clickable links
+  local rowHeight = 24
+  local yOffset = 0
+  local commods = {}
+  
   for i, item in ipairs(commodityList) do
-    cechoLink("commodityConsole", 
-      "&lt;white&gt;" .. item.name .. " (" .. item.price .. ")\n",
+    local labelName = "commod" .. i
+  
+    commods[i] = Geyser.Label:new({
+      name   = labelName,
+      x      = 0,
+      y      = yOffset,
+      width  = "100%",
+      height = rowHeight,
+      message = "&lt;center&gt;" .. item.name .. " (" .. item.price .. ")&lt;/center&gt;",
+    }, commodityBox)
+  
+    commods[i]:setStyleSheet(FEDUI.movement.buttonCSS)
+  
+    commods[i]:setClickCallback(
       function()
         FEDUI.trading.selectedCommodity = item.name
         FEDUI.cPriceDropDown:echo("&lt;center&gt;" .. item.name .. " ▼&lt;/center&gt;")
         FEDUI.commodityPopup:hide()
         FEDUI.commodityPopup = nil
-      end,
-      "Select " .. item.name,
-      true
+      end
     )
-  end
   
+    yOffset = yOffset + rowHeight
+  end
+
   FEDUI.commodityPopup:show()
   FEDUI.commodityPopup:raise()
 end
