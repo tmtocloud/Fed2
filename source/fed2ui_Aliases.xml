@@ -1,0 +1,345 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<MudletPackage version="1.001">
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>fed2ui</name>
+			<script></script>
+			<command></command>
+			<packageName>fed2ui</packageName>
+			<regex></regex>
+			<AliasGroup isActive="yes" isFolder="yes">
+				<name>fedmap</name>
+				<script></script>
+				<command></command>
+				<packageName></packageName>
+				<regex>^fedmap</regex>
+				<Alias isActive="yes" isFolder="no">
+					<name>setRoomChar</name>
+					<script>local roomID = getRoomIDbyHash(gmcp.room.info.system ..".".. gmcp.room.info.area.."."..gmcp.room.info.num)
+setRoomChar(roomID, matches[2])
+echo("symbol set\n")</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^fedmap symbol (.+)</regex>
+				</Alias>
+				<Alias isActive="yes" isFolder="no">
+					<name>clearRoomChar</name>
+					<script>local roomID = getRoomIDbyHash(gmcp.room.info.system ..".".. gmcp.room.info.area.."."..gmcp.room.info.num)
+setRoomChar(roomID, "")
+echo("symbol cleared\n")</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^fedmap clear symbol</regex>
+				</Alias>
+				<Alias isActive="yes" isFolder="no">
+					<name>setRoomEnv</name>
+					<script>local mapperColorTable = {
+  ["red"] = 257, ["green"] = 258, ["yellow"] = 259, ["blue"] = 260, ["magenta"] = 261, ["cyan"] = 262,
+  ["bright grey"] = 263, ["bright gray"] = 263, ["black"] = 264,
+  ["bright red"] = 265, ["bright green"] = 266, ["bright yellow"] = 267, ["bright blue"] = 268,
+  ["bright magenta"] = 269, ["bright cyan"] = 270, ["white"] = 271, ["grey"] = 272, ["gray"] = 272
+}
+
+local roomID = getPlayerRoom()
+
+if type(tonumber(matches[2])) == "number" then
+  setRoomEnv(roomID, matches[2])
+  echo("done\n")
+elseif type(mapperColorTable[matches[2]]) == "number" then
+  setRoomEnv(roomID, mapperColorTable[matches[2]])
+  echo("set color " .. matches[2] .. " #" .. mapperColorTable[matches[2]] .. "\n")
+else
+  echo("Pick one of the following colors:\n")
+  echo("red, green, yellow, blue, magenta, cyan,\n")
+  echo("white, black, grey, bright grey,\n")
+  echo("bright red, bright green, bright yellow,\n")
+  echo("bright blue, bright magenta, bright cyan.\n")
+end</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^fedmap color (.+$)</regex>
+				</Alias>
+				<Alias isActive="yes" isFolder="no">
+					<name>setDoor</name>
+					<script>local convertExit = {
+  ["north"] = "n", ["northeast"] = "ne", ["east"] = "e", ["southeast"] = "se",
+  ["south"] = "s", ["southwest"] = "sw", ["west"] = "w", ["northwest"] = "nw"
+} --allows us to convert long directions into short directions
+local exitCommand = {
+  ["n"] = true, ["ne"] = true, ["e"] = true, ["se"] = true,
+  ["s"] = true, ["sw"] = true, ["w"] = true, ["nw"] = true
+} --the only valid direction names the setDoor function accepts
+
+local doorStatus = { ["none"] = 0, ["green"] = 1, ["yellow"] = 2, ["red"] = 3 }
+
+local roomID = getPlayerRoom()
+local dir = matches[2]
+
+if convertExit[dir] ~= nil then --input is in the conversion table
+  dir = convertExit[matches[2]] --go and convert it
+end
+
+if doorStatus[matches[3]] == nil then --this is not a valid door color
+  echo("door type must be 'none', 'green', 'yellow', or 'red'\n")
+elseif exitCommand[dir] then --we've got a valid direction input
+  setDoor(roomID, dir, doorStatus[matches[3]])
+  echo(dir.." door status set to "..matches[3].."\n")
+else
+  echo("please select a compass direction\n")
+end</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^fedmap door (\w+) (\w+)</regex>
+				</Alias>
+				<Alias isActive="yes" isFolder="no">
+					<name>setExit</name>
+					<script>local convertExit = {
+  ["n"] = "north", ["ne"] = "northeast", ["e"] = "east", ["se"] = "southeast",
+  ["s"] = "south", ["sw"] = "southwest", ["w"] = "west", ["nw"] = "northwest",
+  ["i"] = "in", ["o"] = "out", ["u"] = "up", ["d"] = "down"
+}
+local exitmap = {
+  ["north"] = true, ["northeast"] = true, ["east"] = true, ["southeast"] = true,
+  ["south"] = true, ["southwest"] = true, ["west"] = true, ["northwest"] = true,
+  ["in"] = true, ["out"] = true, ["up"] = true, ["down"] = true
+} --the only valid direction names we accept
+--the setExit function also takes short direction names or exit numbers
+--but since the roomExits table only returns long direction names
+--we need to convert the short names to long ones anyway
+
+local roomID = getPlayerRoom()
+local roomExits = getRoomExits(roomID)
+local dir = matches[2]
+
+if convertExit[dir] ~= nil then --input is in the conversion table
+  dir = convertExit[matches[2]] --go and convert it
+end
+
+if exitmap[dir] then --we've got a valid direction input
+  if roomExits[dir] == tonumber(matches[3]) then --there is an exit to that room in that direction already
+    setExit(roomID, -1, dir) --remove the exit
+    echo(dir.." exit to "..matches[3].." removed\n")
+	elseif roomExits[dir] ~= nil then --there's an exit in that direction, donno where it goes
+		setExit(roomID, -1, dir) --remove the exit
+		setExit(roomID, matches[3], dir) --replace it with the requested exit
+    echo(dir.." exit to "..matches[3].." replaced\n")
+	else
+		setExit(roomID, matches[3], dir) --add the requested exit
+    echo(dir.." exit to "..matches[3].." added\n")
+	end
+else
+  echo("please enter a valid direction\n")
+end</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^fedmap exit (\w+) (\d+)</regex>
+				</Alias>
+				<Alias isActive="yes" isFolder="no">
+					<name>shiftRoom</name>
+					<script>--logic appropriated from Generic Mapper
+
+local coordMap = {
+    ["north"] = {0,1,0}, ["northeast"] = {1,1,0}, ["east"] = {1,0,0}, ["southeast"] = {1,-1,0},
+    ["south"] = {0,-1,0}, ["southwest"] = {-1,-1,0}, ["west"] = {-1,0,0}, ["northwest"] = {-1,1,0},
+    ["n"] = {0,1,0}, ["ne"] = {1,1,0}, ["e"] = {1,0,0}, ["se"] = {1,-1,0},  
+    ["s"] = {0,-1,0}, ["sw"] = {-1,-1,0}, ["w"] = {-1,0,0}, ["nw"] = {-1,1,0}
+} --allows us to convert directional input into useful coordinates
+
+if coordMap[matches[2]] ~= nil then --we have valid directional input
+  local x,y,z = getRoomCoordinates(getPlayerRoom())
+  local coords = coordMap[matches[2]]
+  x = x + coords[1]
+  y = y + coords[2]
+  z = z + coords[3]
+  setRoomCoordinates(getPlayerRoom(),x,y,z)
+	centerview(getPlayerRoom())
+  echo("room shifted\n")
+ else
+  echo("please use a compass direction\n")
+ end</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^fedmap shift (\w+)</regex>
+				</Alias>
+				<Alias isActive="yes" isFolder="no">
+					<name>moveRoom</name>
+					<script>setRoomCoordinates(getPlayerRoom(),matches[2],matches[3],0)
+centerview(getPlayerRoom())
+echo("room moved\n")</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^fedmap move (\d+) (-\d+)$</regex>
+				</Alias>
+				<Alias isActive="yes" isFolder="no">
+					<name>resetRoom</name>
+					<script>local roomID = getPlayerRoom()
+setRoomName(roomID, gmcp.room.info.name) --native mapper function to set the name
+fedmap.roomColor(roomID) --resets color &amp; symbols
+local coordX, coordY = fedmap.makeCoords(gmcp.room.info.num) --get room's default location
+setRoomCoordinates(roomID, coordX, coordY, 0) --move room to default position
+centerview(roomID) --centers the map in case the room moved
+echo("room reset to defaults\n")</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^fedmap reset room</regex>
+				</Alias>
+				<Alias isActive="yes" isFolder="no">
+					<name>resetExits</name>
+					<script>local roomID = getPlayerRoom()
+local areaID = getRoomArea(roomID)
+local exitMap = getRoomExits(roomID)
+
+for dir, num in pairs(exitMap) do --remove all existing exits
+  setExit(roomID, -1, dir)
+ end
+fedmap.generateExits(areaID, roomID) --set exits from scratch
+echo("exits reset\n")</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^fedmap reset exits</regex>
+				</Alias>
+				<Alias isActive="yes" isFolder="no">
+					<name>resetZoom</name>
+					<script>setMapZoom(6)
+echo("map zoom reset\n")</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^fedmap reset zoom</regex>
+				</Alias>
+				<Alias isActive="yes" isFolder="no">
+					<name>deleteArea</name>
+					<script>local areaID = getRoomArea(getPlayerRoom())
+deleteArea(areaID)
+echo("local area deleted\n")</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^fedmap delete area</regex>
+				</Alias>
+				<Alias isActive="yes" isFolder="no">
+					<name>setGridMode</name>
+					<script>local areaID = getRoomArea(getPlayerRoom())
+if matches[2] == "on" then
+  setGridMode(areaID, true)
+  echo("map mode set to grid\n")
+elseif matches[2] == "off" then
+  setGridMode(areaID, false)
+  echo("map mode set to default\n")
+else
+  echo("grid mode must be set to 'on' or off'\n")
+end</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^fedmap grid (\w+)</regex>
+				</Alias>
+				<Alias isActive="yes" isFolder="no">
+					<name>help</name>
+					<script>echo("fedmap is designed to 'just work' and will run autonomously\n")
+echo("there are some special commands to tweak rooms once they're mapped\n")
+echo("all input should be always lowercase\n")
+echo("\n")
+cecho("'&lt;b&gt;fedmap symbol {text}&lt;/b&gt;': will add text to the room you're in\n")
+echo("recommended 1 or 2 characters only, will accept ascii/unicode/emoji\n")
+echo("\n")
+cecho("'&lt;b&gt;fedmap clear symbol&lt;/b&gt;': will clear any existing text in your room\n")
+echo("\n")
+cecho("'&lt;b&gt;fedmap color {color}&lt;/b&gt;': sets the room's color\n")
+echo("available colors:\n")
+echo("red, green, yellow, blue, magenta, cyan,\n")
+echo("white, black, grey, bright grey,\n")
+echo("bright red, bright green, bright yellow,\n")
+echo("bright blue, bright magenta, bright cyan.\n")
+echo("\n")
+cecho("'&lt;b&gt;fedmap door {direction} {door color}&lt;/b&gt;': sets some cosmetic lines on the map\n")
+echo("available door colors:\n")
+echo("'none', 'green', 'yellow', or 'red'\n")
+echo("\n")
+cecho("'&lt;b&gt;fedmap exit {direction} {room number}&lt;/b&gt;': manually sets a one-way exit\n")
+echo("running it on an exit that already exists will remove it instead\n")
+echo("good for situations where exits appear and disappear, such as earth's shuttle\n")
+echo("\n")
+cecho("'&lt;b&gt;fedmap shift {direction}&lt;/b&gt;': nudges a room one square in the indicated direction\n")
+echo("\n")
+cecho("'&lt;b&gt;fedmap move {x coordinate} {y coordinate}&lt;/b&gt;': moves the room to the specified coordinates\n")
+echo("\n")
+cecho("'&lt;b&gt;fedmap reset room&lt;/b&gt;': resets the room to its default name, color, symbols, and coordinates\n")
+echo("\n")
+cecho("'&lt;b&gt;fedmap reset exits&lt;/b&gt;': resets the room's exits to whatever the game is showing right now\n")
+echo("\n")
+cecho("'&lt;b&gt;fedmap reset zoom&lt;/b&gt;': resets the area's zoom to the default\n")
+echo("\n")
+cecho("'&lt;b&gt;fedmap delete area&lt;/b&gt;': wipes the current map, for when you want to start over completely\n")
+echo("\n")
+cecho("'&lt;b&gt;fedmap grid {on/off}&lt;/b&gt;': toggles mapper's grid mode, smushing rooms together and hiding exit lines\n")</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^fedmap help</regex>
+				</Alias>
+			</AliasGroup>
+			<AliasGroup isActive="yes" isFolder="yes">
+				<name>echoChatOut</name>
+				<script>--takes your chat output and echoes it to the dedicated chat window
+--does not currently handle XT chat</script>
+				<command></command>
+				<packageName></packageName>
+				<regex></regex>
+				<Alias isActive="yes" isFolder="no">
+					<name>echoCom</name>
+					<script>send(matches[1])
+FEDUI.chatWindow:cecho('&lt;ansiCyan&gt;You comm: "' .. matches[2] .. '"\n')</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^com (.+)?$</regex>
+				</Alias>
+				<Alias isActive="yes" isFolder="no">
+					<name>echoComm</name>
+					<script>send(matches[1])
+FEDUI.chatWindow:cecho('&lt;ansiCyan&gt;You comm: "' .. matches[2] .. '"\n')</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^comm (.+)?$</regex>
+				</Alias>
+				<Alias isActive="yes" isFolder="no">
+					<name>echoSay</name>
+					<script>send(matches[1])
+FEDUI.chatWindow:cecho('&lt;ansiCyan&gt;You say: "' .. matches[2] .. '"\n')</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^say (.+)?$</regex>
+				</Alias>
+				<Alias isActive="yes" isFolder="no">
+					<name>echoSay(")</name>
+					<script>send(matches[1])
+FEDUI.chatWindow:cecho('&lt;ansiCyan&gt;You say: "' .. matches[2] .. '"\n')</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^"(.+)?$</regex>
+				</Alias>
+				<Alias isActive="yes" isFolder="no">
+					<name>echoSay(')</name>
+					<script>send(matches[1])
+FEDUI.chatWindow:cecho('&lt;ansiCyan&gt;You say: "' .. matches[2] .. '"\n')</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^'(.+)?$</regex>
+				</Alias>
+				<Alias isActive="yes" isFolder="no">
+					<name>echoTB</name>
+					<script>send(matches[1])
+FEDUI.chatWindow:cecho('&lt;ansiRed&gt;You tell ' .. matches[2] .. ': "' .. matches[3] .. '"\n')</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^tb (\w+) (.+)$</regex>
+				</Alias>
+				<Alias isActive="yes" isFolder="no">
+					<name>echoTell</name>
+					<script>send(matches[1])
+FEDUI.chatWindow:cecho('&lt;ansiRed&gt;You tell ' .. matches[2] .. ': "' .. matches[3] .. '"\n')</script>
+					<command></command>
+					<packageName></packageName>
+					<regex>^tell (\w+) (.+)$</regex>
+				</Alias>
+			</AliasGroup>
+		</AliasGroup>
+	</AliasPackage>
+</MudletPackage>

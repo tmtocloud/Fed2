@@ -1,0 +1,3217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<MudletPackage version="1.001">
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>fed2ui</name>
+			<packageName>fed2ui</packageName>
+			<script></script>
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>AdjustableTabWindow</name>
+				<packageName></packageName>
+				<script>-- Adjustable TabWindow
+-- TabWindow code by Mudlet Wiki
+-- other functions
+-- by Edru 10th October 2020
+-- https://github.com/Edru2/AdjustableTabWindow 
+
+Adjustable = Adjustable or {}
+Adjustable.TabWindow = Adjustable.TabWindow or Geyser.Container:new({name = "AdjustableTabWindowClass"})
+local tab_pos = nil
+
+function Adjustable.TabWindow:createBaseContainers()
+    self.tabBar = self.tabBar or Geyser.Label:new({        
+        name = self.name.."tabBar",
+        x = 0, y = 0,
+        width = "100%",
+        height = self.tabBarHeight,
+    },self)
+    self.tabBar:setStyleSheet(self.tabBarStyle)
+    
+    self.header = self.header or Geyser.HBox:new({
+        name = self.name.."header",
+        x = 0, y = 0,
+        width = "100%",
+        height = "100%",
+    },self.tabBar)
+    
+    self.overlay = self.overlay or Geyser.Label:new({
+        name = self.name.."overlay",
+        x = 0, y = 0,
+        width = "100%",
+        height = "100%",
+    },self.tabBar)
+    
+    self.overlay:setStyleSheet(self.overlayStyle)
+    self.overlay:setMoveCallback(function(event) self:onOverlayMove(event) end)
+    self.overlay:setOnLeave(function(event) self:onOverlayLeave(event) end)
+    self.overlay:setClickCallback(function(event) self:onOverlayClick(event) end)
+    self.overlay:hide()
+    
+    self.footerContainer = self.footerContainer or Geyser.Container:new({
+        name = self.name.."footerContainer",
+        x = 0, y = self.tabBarHeight,
+        width = "100%",
+        height = "-0",
+    },self)
+    
+    self.footer = self.footer or Geyser.Label:new({
+        name = self.name.."footer",
+        x = 0, y = self.gap,
+        width = "100%",
+        height = "-0",
+    },self.footerContainer)
+    
+    self.footer:setStyleSheet(self.footerStyle)
+end
+
+local function setTabToolTip(tab)
+    -- put ToolTip on Label if TabText is to long to display
+    local w,h = calcFontSize(tab.adjLabel.fontSize)
+    local txt_width = #tab.tabText * w
+    if tab.adjLabel:get_width() &lt; txt_width then
+        tab.adjLabel:setToolTip(tab.tabText)
+    else
+        tab.adjLabel:resetToolTip()
+    end
+end
+
+-- function to create new tabs in tabs table or to rewrite/readjust them
+function Adjustable.TabWindow:createTabs()
+    for k,v in ipairs(self.tabs) do
+        self[v.."center"] = self[v.."center"] or Geyser.Label:new({
+            name = v.."center",
+            x = 0, y = 0,
+            width = "100%",
+            height = "100%",
+        },self.footer)
+        
+        self[v.."center"]:setStyleSheet(self.centerStyle)
+        
+        local tabText = self[v] and self[v].tabText or v
+        
+        self[v] = self[v] or Adjustable.Container:new({
+            name = self.name.." Tab: "..v,
+            tabname = v,
+            origin = self,
+            noLimit = true,
+            tabText = tabText,
+            padding = 0,
+            locked = true,
+            autoSave = false,
+            autoLoad = false,
+            raiseOnClick = false,
+            adjLabelstyle = self.inactiveTabStyle,
+            titleTxtColor = self.tabTxtColor
+            
+        }, self.header)
+        
+        self[v]:setTitle("", self.TabTxtColor)
+        self[v].titleText = "&amp;nbsp;&amp;nbsp;"..tabText
+        self[v].adjLabel:echo(tabText, self.TabTxtColor)
+        self[v]:newLockStyle("tab", 
+        function(self)         
+            self.Inside:resize("-"..self.padding,"-"..self.padding)
+            self.Inside:move(self.padding, self.padding*2) 
+        end)
+        
+        self[v].lockStyle = "tab"
+        
+        self[v].unlockContainer = function()
+            Adjustable.Container.unlockContainer(self[v])
+            self[v]:setTitle("", self.tabTxtColor)
+            self[v].titleText = ("&amp;nbsp;&amp;nbsp;"..self[v].tabText)
+            self[v].adjLabel:echo(self[v].tabText, "nocolor", "c")
+        end
+        
+        
+        Adjustable.TabWindow.allTabs[v] = self
+        
+        self[v]:newCustomItem("Tabify", function() Adjustable.TabWindow.allTabs[v]:createTempWindow(self[v]) end)
+        
+        self[v].reposition = self.reposition
+        local delIndex = table.index_of(Adjustable.Container.all_windows, self[v].name)
+        if delIndex then
+            table.remove(Adjustable.Container.all_windows, delIndex)
+        end
+        Adjustable.Container.all[self[v].name] = nil
+        self[v].adjLabelstyle = self.inactiveTabStyle
+        self[v].titleTxtColor = self.tabTxtColor
+        self[v].adjLabel:setStyleSheet(self.inactiveTabStyle)
+        
+        self[v].adjLabel:echo(self[v].tabText, "nocolor", "c")
+        self[v].adjLabel:setClickCallback(function(event) self:onClick(v, event) end)
+        self[v].adjLabel:setReleaseCallback(function(event) self:onRelease(v, event) end)
+        self[v].adjLabel:setMoveCallback(function(event) self:onMove(v, event) end)
+        self[v].adjLabel:setDoubleClickCallback(function(event) self:onDoubleClick(v, event) end)
+        self[v].minimizeLabel:setClickCallback(function() self:onMinimizeClick(v) end)
+        self[v].minimizeLabel:echo("&lt;center&gt;🗗&lt;/center&gt;")
+        self[v].minLabel:setClickCallback(function() self:onMinimizeClick(v) end)
+        self[v.."center"]:hide()        
+        -- put ToolTip on Label if TabText is to long to display
+        setTabToolTip(self[v])
+    end
+end
+
+
+--- Sets the amount of space to use between the tabs and the consoles
+-- @tparam number gap Number of pixels to keep between the tabs and consoles
+function Adjustable.TabWindow:setGap(gap)
+    local gapNumber = tonumber(gap)
+    local gapType = type(gap)
+    assert(gapType == "number", "gap expected as number, got " .. gapType)
+    self.gap = gapNumber
+    self.footer:move(0, gapNumber)
+end
+
+--- Sets the height of the tabs in pixels/percent
+-- @tparam number tabHeight the height of the tabs for the object, in pixels/percent
+function Adjustable.TabWindow:setTabHeight(tabHeight)
+    self.tabBarHeight = tabHeight
+    self.tabBar:resize("100%", tabHeight)
+    self.footerContainer:move(0, tabHeight)
+    self.footerContainer:resize("100%", "-0")
+end
+
+
+--- Sets the CSS to use for the tab box which contains the tabs for the object
+-- @tparam string css The css styling to use for the tab box
+function Adjustable.TabWindow:setTabBarCSS(css)
+    local cssType = type(css)
+    assert(cssType == "string", "css as string expected, got " .. cssType)
+    self.tabBarStyle = css
+    self.tabBar:setStyleSheet(self.tabBarStyle)
+end
+
+--- Sets the color to use for the tab box background
+-- @param color Color string suitable for decho or hecho, or color name eg "purple", or table of colors {r,g,b}
+function Adjustable.TabWindow:setTabBarColor(color)
+    self.tabBarColor = color
+    self.tabBarStyle = ""
+    self.tabBar:setStyleSheet(self.tabBarStyle)
+    self.tabBar:setColor(self.tabBarColor)
+end
+
+--- Sets the FG color for the active tab
+-- @param color Color string suitable for decho or hecho, or color name eg "purple", or table of colors {r,g,b}
+function Adjustable.TabWindow:setActiveTabFGColor(color)
+    local found
+    local add_css
+    local r, g, b = Geyser.Color.parse(color)
+    local rgb = string.format("rgb(%s, %s, %s)",r,g,b)
+    self.activeTabFGColor = color
+    self.activeTabStyle, found = string.gsub(" "..self.activeTabStyle, "(%scolor:).-(;)","%1"..rgb.."%2")
+    if found == 0 then
+        if string.match(self.activeTabStyle,"QLabel{") then
+            add_css = "\nQLabel{color:"..rgb..";}"
+        else
+            add_css = "\ncolor:"..rgb..";"
+        end
+        self.activeTabStyle = self.activeTabStyle..add_css
+    end
+    self:adjustTabStyle()
+end
+
+--- Sets the FG color for the inactive tab
+-- @param color Color string suitable for decho or hecho, or color name eg "purple", or table of colors {r,g,b}
+function Adjustable.TabWindow:setInactiveTabFGColor(color)
+    local found
+    local add_css
+    self.inactiveTabFGColor = color
+    local r, g, b = Geyser.Color.parse(color)
+    local rgb = string.format("rgb(%s, %s, %s)",r,g,b)
+    
+    self.inactiveTabStyle, found = string.gsub(" "..self.inactiveTabStyle, "(%scolor:).-(;)","%1"..rgb.."%2") 
+    if found == 0 then
+        if string.match(self.inactiveTabStyle,"QLabel{") then
+            add_css = "\nQLabel{color:"..rgb..";}"
+        elseif string.match(self.inactiveTabStyle,"QLabel::!hover{") then
+            add_css = ""
+            self.inactiveTabStyle = string.gsub(self.inactiveTabStyle, "(QLabel::!.-)(})","%1".."color:"..rgb..";".."%2")
+        else 
+            add_css = "\ncolor:"..rgb..";"
+        end
+        self.inactiveTabStyle = self.inactiveTabStyle..add_css
+    end
+    self:adjustTabStyle()
+end
+
+--- Sets the BG color for the active tab.
+-- &lt;br&gt;NOTE: If you set CSS for the active tab, it will override this setting.
+-- @param color Color string suitable for decho or hecho, or color name eg "purple", or table of colors {r,g,b}
+function Adjustable.TabWindow:setActiveTabBGColor(color)
+    self.activeTabBGColor = color
+    local r, g, b = Geyser.Color.parse(color)
+    local rgba = string.format("rgba(%s, %s, %s, %s)",r,g,b,"100%%")
+    self.activeTabStyle = string.gsub(self.activeTabStyle, "(background%-color:.-).-(;)","%1 "..rgba.."%2")
+    self:adjustTabStyle()
+end
+
+--- Sets the BG color for the inactive tab.
+-- &lt;br&gt;NOTE: If you set CSS for the inactive tab, it will override this setting.
+-- @param color Color string suitable for decho or hecho, or color name eg "purple", or table of colors {r,g,b}
+function Adjustable.TabWindow:setInactiveTabBGColor(color)
+    self.inactiveTabBGColor = color
+    local r, g, b = Geyser.Color.parse(color)
+    local rgba = string.format("rgba(%s, %s, %s, %s)",r,g,b,"100%%")
+    self.inactiveTabStyle = string.gsub(self.inactiveTabStyle, "(background%-color:.-).-(;)","%1 "..rgba.."%2")
+    self:adjustTabStyle()
+end
+
+function Adjustable.TabWindow:adjustTabStyle()
+    local abg_rgb = string.match(self.activeTabBGColor, "%d+.-%d+.-%d+")
+    local ibg_rgb = string.match(self.inactiveTabBGColor, "%d+.-%d+.-%d+")
+    for k,v in ipairs(self.tabs) do
+        if v == self.current then
+            self[v].adjLabelstyle = self.activeTabStyle
+            self[v].adjLabel:setStyleSheet(self.activeTabStyle)
+            if abg_rgb then
+                self[v].adjLabel:setColor("&lt;"..abg_rgb.."&gt;")
+            else
+                self[v].adjLabel:setColor(self.activeTabBGColor)
+            end
+        else
+            self[v].adjLabelstyle = self.inactiveTabStyle
+            self[v].adjLabel:setStyleSheet(self.inactiveTabStyle)
+            if ibg_rgb then
+                self[v].adjLabel:setColor("&lt;"..ibg_rgb.."&gt;")
+            else
+                self[v].adjLabel:setColor(self.inactiveTabBGColor)
+            end
+        end
+    end
+end
+
+--- sets the font for all tabs
+--- @tparam string font the font to use.
+function Adjustable.TabWindow:setTabFont(font)
+    self.tabFont = font
+    for k,v in ipairs(self.tabs) do
+        self[v].adjLabel:setFont(font)
+    end
+end
+
+--- sets the font for a single tab. If you use setTabFont this will be overridden
+--- @tparam string tabName the tab to change the font of
+--- @tparam string font the font to use for that tab
+function Adjustable.TabWindow:setSingleTabFont(tabName, font)
+    local funcName = "EMCO:setSingleTabFont(tabName, font)"
+    if not table.contains(self.tabs, tabName) then
+        error("tabName must be an existing tab")
+    end
+    self[tabName].adjLabel:setFont(font)
+end
+
+-- finds the right position to drop the tab into
+function Adjustable.TabWindow:findPosition(tab)
+    local myWindow = Adjustable.TabWindow.currentWindow or self
+    local x, w = myWindow.get_x(), myWindow.get_width()
+    local total = w/#myWindow.tabs
+    local tab_x = tab.get_x() - x
+    local position = (tab_x/total) + 1
+    position = math.floor(position + 0.5)
+    if position &lt; 1 then
+        position = 1
+    end
+    if position &gt; #myWindow.tabs then
+        position = #myWindow.tabs + 1
+    end
+    return position
+end
+
+-- checks if 2 elements collide
+local function checkCollision(x1,y1,w1,h1, x2,y2,w2,h2)
+    if  x1 &lt; x2+w2 and
+    x2 &lt; x1+w1 and
+    y1 &lt; y2+h2 and
+    y2 &lt; y1+h1 then
+        return true
+    end
+end
+
+local function getFloatingWindows()
+    local floatingWindows = {}
+    for k,v in pairs(Adjustable.TabWindow.allTabs) do
+        if v[k].floating then
+            floatingWindows[k] = v[k]
+        end
+    end
+    return floatingWindows
+    
+end
+
+-- checks if your tab collides with one of the tabwindows
+function Adjustable.TabWindow:checkMultiCollision(tab)
+    local floatingWindows = getFloatingWindows()
+    local x1, y1, w1, h1 = tab:get_x(), tab:get_y(), tab:get_width(), tab:get_height()
+    for k,v in pairs(floatingWindows) do
+        local x2, y2, w2, h2 = v:get_x(), v:get_y(), v:get_width(), v:get_height()   
+        if checkCollision(x1,y1,w1,h1, x2,y2,w2,h2) and v.windowname == self.windowname and not(v.hidden or v.auto_hidden) and not (v == tab) and not v.locked then
+            return "floating", v
+        end
+    end  
+    for k,v in pairs(Adjustable.TabWindow.all) do
+        local x2, y2, w2, h2 = v:get_x(), v:get_y(), v:get_width(), v:get_height()
+        
+        if checkCollision(x1,y1,w1,h1, x2,y2,w2,h2) and v.windowname == self.windowname and not(v.hidden or v.auto_hidden) then
+            return "TabWindow", v
+        end
+    end  
+end
+
+-- onMove function
+-- contains all the functionality to move the tab (collision check, make space ...)
+function Adjustable.TabWindow:onMove(tab, event)
+    self[tab]:onMove(self[tab].adjLabel, event)
+    self[tab].adjLabel:setAlignment("c")
+    if self[tab].floating or not Adjustable.TabWindow.clicked then
+        return
+    end
+    local result, value = self:checkMultiCollision(self[tab])
+    if Adjustable.TabWindow.currentWindow and Adjustable.TabWindow.currentWindow ~= value and not Adjustable.TabWindow.currentWindow.floating then
+        -- reset the tab space
+        self:makeSpace(Adjustable.TabWindow.currentWindow, nil, true)
+    end
+    if result == "TabWindow" then
+        Adjustable.TabWindow.currentWindow = value
+        tab_pos = value:findPosition(self[tab])
+        self:makeSpace(value, tab_pos)
+        return
+    end
+    if result == "floating" and not(value.locked) then
+        Adjustable.TabWindow.currentWindow = value
+        return
+    end    
+    if Adjustable.TabWindow.currentWindow then
+        Adjustable.TabWindow.currentWindow = nil
+    end
+end
+
+--- Transforms a floating Tab into a temporary TabWindow
+-- @tparam tab the tab which will be transformed
+function Adjustable.TabWindow:createTempWindow(tab, tempName)
+    if tab and not(tab.floating) then
+        return
+    end
+    
+    local rnd_nr = 0
+    for i=0,#Adjustable.TabWindow.all_windows do
+        if not Adjustable.TabWindow.all["tempTabWindow"..i] then
+            rnd_nr = i
+            break
+        end
+    end
+    
+    local window = tab and tab.windowname ~= "main" and Geyser.windowList[tab.windowname.."Container"].windowList[tab.windowname] or Geyser
+    local tempWindowName = tempName and "tempWindow"..string.match(tempName,"%d+") or "tempWindow"..rnd_nr
+    local tempTabWindowName = tempName or "tempTabWindow"..rnd_nr
+    local x, y, width, height = 0,0,100,100
+    if tab then
+        x, y, width, height = tab:get_x(), tab:get_y(), tab:get_width(), tab:get_height()
+    end
+    local tempWindowConf = { name = tempWindowName,
+    titleText = "",
+    x = x,
+    y = y, 
+    width = width, 
+    height = height,
+    autoSave = false,
+    autoLoad = false,
+}
+tempWindowConf = table.union(tempWindowConf, self.tempWindowConf)
+
+local windowCont = Adjustable.Container:new(tempWindowConf)
+windowCont:move(x, y)
+windowCont:resize(width, height)
+table.remove(Adjustable.Container.all_windows, table.index_of(Adjustable.Container.all_windows, windowCont.name ))
+Adjustable.Container.all[windowCont.name] = nil
+
+local tabWindow = Adjustable.TabWindow:new({
+    name = tempTabWindowName,
+    x = 0, 
+    y = 0, 
+    width = "100%", 
+    height = "100%",
+    tabTxtColor 		= self.tabTxtColor,
+    tabPadding 		    = self.tabPadding,
+    activeTabFGColor 	= self.activeTabFGColor,
+    inactiveTabFGColor 	= self.inactiveTabFGColor, 
+    activeTabBGColor 	= self.activeTabBGColor, 
+    inactiveTabBGColor 	= self.inactiveTabBGColor, 
+    tabBarColor 		= self.tabBarColor,    
+    tabBarStyle 		= self.tabBarStyle, 
+    color1 			    = self.color1, 
+    color2 			    = self.color2, 
+    tabBarHeight 		= self.tabBarHeight, 
+    footerStyle 		= self.footerStyle, 
+    centerStyle 		= self.centerStyle,
+    inactiveTabStyle 	= self.inactiveTabStyle, 
+    activeTabStyle 		= self.activeTabStyle, 
+    chosenTabStyle 		= self.chosenTabStyle,  
+    overlayStyle 		= self.overlayStyle,  
+    gap 		 	    = self.gap, 
+    temporary = true 
+}, windowCont) 
+
+--save name to get the style on loading
+tabWindow.tempStyle = self.tempStyle or self.name 
+if tab then
+    self:restoreTab(tab.tabname, tabWindow)
+    tab.tempWindow = windowCont
+    tab.tempTabWindow = tabWindow
+    tab.tempWindow:changeContainer(window)
+    tab.tempWindow:setPercent(true, true)
+end
+windowCont:show()
+windowCont.tabWindow = tabWindow
+return windowCont
+end
+
+-- mouse movement on the overlay label
+function Adjustable.TabWindow:onOverlayMove(event)  
+    Adjustable.TabWindow.currentWindow = self
+    local tab = Adjustable.TabWindow.clickedTab.name
+    if Adjustable.TabWindow.clickedTab ~= self.header.windowList[tab] then
+        -- need to feed values to findPosition
+        local fakeTab = {}
+        fakeTab.get_x = function() return event.x + self.header.get_x() end    
+        tab_pos = self:findPosition(fakeTab)
+        self:makeSpace(self, tab_pos)
+    end
+end
+
+-- reset tabspace after mouse leaves overlay label and resets the currentWindow
+function Adjustable.TabWindow:onOverlayLeave(event)
+    Adjustable.TabWindow.currentWindow = nil
+    if not(Adjustable.TabWindow.doubleClick) then
+        return
+    end
+    local tab = Adjustable.TabWindow.clickedTab.name
+    if Adjustable.TabWindow.clickedTab ~= self.header.windowList[tab] then
+        self:makeSpace(nil, nil, true)
+    end
+end
+
+-- reset the Overlay label to be hidden
+local function resetOverlay()
+    local tab = Adjustable.TabWindow.clickedTab
+    if Adjustable.TabWindow.overlayTimer then
+        killTimer(Adjustable.TabWindow.overlayTimer)
+        Adjustable.TabWindow.overlayTimer = nil
+    end
+    for k,v in pairs(Adjustable.TabWindow.all) do 
+        v.overlay:setStyleSheet("background-color: rgba(0,0,0,0%);") 
+        v.overlay:hide()
+    end  
+    if Adjustable.TabWindow.currentWindow then
+        Adjustable.TabWindow.currentWindow:makeSpace(nil, nil, true)
+    end
+    Adjustable.TabWindow.doubleClick = nil
+    tab_pos = nil
+    
+    -- reset Style if overlay is resetet without action
+    if tab then
+        tab.adjLabel:setStyleSheet(tab.adjLabelstyle)
+    end
+    
+    if Adjustable.TabWindow.MouseEventID then     
+        killAnonymousEventHandler(Adjustable.TabWindow.MouseEventID)
+        Adjustable.TabWindow.MouseEventID = nil
+    end
+end
+
+-- handles on overlay click event
+function Adjustable.TabWindow:onOverlayClick(event) 
+    Adjustable.TabWindow.doubleClick = nil
+    local tab = Adjustable.TabWindow.clickedTab
+    local container = Adjustable.TabWindow.allTabs[tab.tabname] or self
+    tab.adjLabel:setStyleSheet(container.activeTabStyle)
+    if container[tab.tabname].floating then
+        container:restoreTab(tab.tabname, self)
+        self:addTab(tab.tabname, tab_pos)
+    else
+        container:onRelease(tab.tabname, event)
+    end
+    resetOverlay()
+end
+
+-- if clicked on the minimize label the tab will be 
+-- restored to be in a tabwindow again
+function Adjustable.TabWindow:onMinimizeClick(tab)  
+    local result, value = self:checkMultiCollision(self[tab])
+    if result == "floating" then
+        value = nil
+    end
+    self:restoreTab(tab, value)
+end
+
+-- activates the tab tab (doesn't deactivate the previous tab)
+-- @see Adjustable.TabWindow:deactivateTab()
+function Adjustable.TabWindow:activateTab(tab)
+    self:deactivateTab()
+    tab = self[tab] and tab or self.tabs[1]
+    self.current = tab
+    if self.current then
+        self[tab].adjLabelstyle = self.activeTabStyle
+        self[tab].adjLabel:setStyleSheet(self.activeTabStyle)
+        self[self.current.."center"]:show()
+    end
+    self:raiseAll()
+end
+
+-- deactivates and hides the current active tab
+function Adjustable.TabWindow:deactivateTab()
+    if self.current and self[self.current] then  
+        self[self.current].adjLabelstyle = self.inactiveTabStyle
+        self[self.current].adjLabel:setStyleSheet(self.inactiveTabStyle)
+        self[self.current.."center"]:hide()
+    end
+end
+
+-- handles click event on tab
+function Adjustable.TabWindow:onClick(tab, event)
+    if Adjustable.TabWindow.doubleClick then
+        return
+    end
+    Adjustable.TabWindow.currentWindow = self
+    Adjustable.TabWindow.clicked = true
+    Adjustable.TabWindow.clickedTab = self[tab]
+    if event.button == "LeftButton" and not self[tab].floating then
+        self[tab]:resize(self[tab].get_width(),self[tab].get_height())
+        self[tab].container = Geyser
+        -- set minimized to true to prevent resizing
+        self[tab].minimized = true
+        self[tab]:unlockContainer()
+        self[tab]:onClick(self[tab].adjLabel, event)
+        self[tab].exitLabel:hide()
+        self[tab].minimizeLabel:hide()
+        Adjustable.TabWindow.clicked = true
+        Adjustable.TabWindow.clickedTab = self[tab]
+        self[tab].adjLabel:echo(self[tab].tabText, "nocolor", "c")
+    end
+    
+    if self[tab].floating then
+        self[tab]:onClick(self[tab].adjLabel, event)
+    end
+    if not self[tab].floating then
+        self:activateTab(tab)
+        self[tab].adjLabel:raise(false)
+    end
+end
+
+-- handles double click event on getAreaTable
+-- activates the tab overlay
+function Adjustable.TabWindow:onDoubleClick(tab, event)
+    Adjustable.TabWindow.currentWindow = self
+    Adjustable.TabWindow.doubleClick = true
+    Adjustable.TabWindow.clickedTab = self[tab]
+    self[tab].adjLabel:setStyleSheet(self.chosenTabStyle)
+    for k,v in pairs(Adjustable.TabWindow.all) do
+        v.overlay:show()
+        v.overlay:raise()
+        v.overlay:setStyleSheet(v.overlayStyle)
+    end
+    Adjustable.TabWindow.overlayTimer = Adjustable.TabWindow.overlayTimer or tempTimer(10, function() resetOverlay() end )
+    Adjustable.TabWindow.MouseEventID = Adjustable.TabWindow.MouseEventID or registerAnonymousEventHandler("sysWindowMousePressEvent", "Adjustable.TabWindow.onMouseClick", true)
+end
+
+-- handles the mouseclick event 
+-- used for sending windows to the main or userwindow after using doubleclick on a tab
+function Adjustable.TabWindow.onMouseClick( event, button, x, y, windowname )
+    local newContainer = Geyser
+    if windowname ~= "main" then
+        newContainer = Geyser.windowList[windowname.."Container"].windowList[windowname]
+    end 
+    local tab = Adjustable.TabWindow.clickedTab
+    local container = Adjustable.TabWindow.allTabs[tab.tabname]
+    
+    container:transformTabContainer(tab.tabname)   
+    local width, height = math.min(newContainer.get_width(), tab:get_width()), math.min(newContainer.get_height(), tab:get_height())
+    
+    tab:changeContainer(newContainer)
+    tab:raiseAll()
+    local x = math.min(newContainer.get_width() - width, math.max(0, x - width/2))
+    local y = math.min(newContainer.get_height() - height, math.max(0, y))
+    tab:move(x, y)
+    tab:resize(width, height)
+    tab:setPercent(true,true)
+    killAnonymousEventHandler(Adjustable.TabWindow.MouseEventID)
+    Adjustable.TabWindow.MouseEventID = nil
+    resetOverlay()
+end
+
+-- transforms the tab to a window
+function Adjustable.TabWindow:transformTabContainer(tab)
+    local myWindow = Adjustable.TabWindow.allTabs[tab] or self
+    local container = self[tab]
+    if container.windowname == "main" then
+        Geyser:add(container)
+    else
+        Geyser.windowList[container.windowname.."Container"].windowList[container.windowname]:add(container)
+    end
+    container:unlockContainer()
+    container:resize(self.get_width(), self.get_height())
+    container:add(self[tab.."center"])
+    myWindow:removeTab(tab)
+    myWindow:createTabs()
+    container:setPadding(self.tabPadding)
+    container:show()
+    container:raiseAll()
+    myWindow[tab].floating = true
+    container.raiseOnClick = true
+    container.adjLabel:echo(self[tab].tabText, "nocolor", "c")
+    container.adjLabel:resetToolTip()
+    container.minimized = false
+    container:setPercent(true, true)
+    myWindow:activateTab(tab)
+    if #myWindow.tabs &gt; 0 then
+        myWindow:activateTab(myWindow.tabs[1])
+    else 
+        myWindow.current = nil
+    end
+    local found
+    container.adjLabelstyle, found = string.gsub(self.activeTabStyle, "(qproperty%-alignment%:.-).-(;)","%1 'AlignTop' %2")
+    if found == 0 then
+        container.adjLabelstyle = container.adjLabelstyle.."\nqproperty-alignment: 'AlignTop' ;\n"
+    end
+    container.adjLabel:setStyleSheet(container.adjLabelstyle)
+    self[tab.."center"]:show()
+end
+
+--restores the window to be a tab again
+function Adjustable.TabWindow:restoreTab(tab, myWindow)
+    myWindow = myWindow or self
+    local container = self[tab]
+    container.container:remove(container)
+    container:remove(self[tab.."center"])
+    container:setPadding(0)
+    container:lockContainer()
+    container:detach()
+    container:disconnect()
+    container.adjLabel:echo(self[tab].tabText, "nocolor", "c")
+    self:changeTabContainer(tab, myWindow)
+    self[tab].floating = false
+    container.raiseOnClick = false
+    tempTimer(0, function() myWindow:activateTab(tab) end)
+end
+
+-- function to make a gap where the tab can be dropped in
+function Adjustable.TabWindow:makeSpace(myWindow, position, resetSpace)
+    myWindow = myWindow or self
+    position = position or #myWindow.header.windows
+    if position &lt; 1 then position = 1 end
+    local current_Tab = Adjustable.TabWindow.clickedTab or {}
+    local total_count = #myWindow.header.windows + 1
+    -- close the space if resetSpace is true
+    if resetSpace then
+        position = -1
+        total_count = total_count -1
+    end
+    
+    if myWindow == self and current_Tab.name and not(Adjustable.TabWindow.doubleClick) then
+        total_count = total_count -1
+    end
+    local new_width = myWindow.get_width() / total_count
+    local new_x = 0
+    local counter = 1
+    for k,v in ipairs(myWindow.header.windows) do
+        if v ~= current_Tab.name then
+            if counter == position then
+                new_x = new_x + new_width
+            end
+            myWindow.header.windowList[v]:resize(new_width)
+            myWindow.header.windowList[v]:move(new_x)   
+            new_x = new_x + new_width
+            counter = counter + 1  
+        end
+    end
+end
+
+-- function to change the parent window of the tab 
+function Adjustable.TabWindow:changeTabContainer(tab, myWindow, position)
+    if self ~= myWindow or self[tab].floating then
+        myWindow[tab] = self[tab]
+        myWindow[tab.."center"] = self[tab.."center"]
+        self[tab].container = not(self[tab].floating) and self.header or Geyser 
+        self[tab.."center"]:changeContainer(myWindow.footer)
+        self[tab]:changeContainer(myWindow.header)
+        if not (self[tab].floating) then
+            self:removeTab(tab)
+            self:createTabs()
+        end
+        myWindow:createTabs()
+        myWindow[tab]:show()
+        if not(myWindow.hidden or myWindow.auto_hidden) then
+            myWindow:show()
+        end
+    end
+    myWindow:addTab(tab, position)
+    if self.current then
+        self[self.current]:show()
+    end
+    if #self.tabs &gt; 0 then
+        if not (self[tab].floating) then
+            self:activateTab(self.tabs[1])
+        end
+    else 
+        self.current = nil
+    end
+    myWindow:activateTab(tab)
+end
+
+-- handles the release event
+function Adjustable.TabWindow:onRelease(tab, event, position)
+    if Adjustable.TabWindow.doubleClick then
+        return
+    end
+    local myWindow = Adjustable.TabWindow.currentWindow or self
+    local floating = self[tab].floating
+    if event.button == "LeftButton" and Adjustable.TabWindow.currentWindow and myWindow.type == "adjustabletabwindow" and not floating then
+        self[tab]:lockContainer()
+        self[tab].container = self.header
+        self[tab]:onRelease(self[tab].adjLabel, event)
+        self[tab].adjLabel:echo(self[tab].tabText, "nocolor", "c")
+        tab_pos = tab_pos or myWindow:findPosition(self[tab])
+        if myWindow ~= self then
+            self:changeTabContainer(tab, myWindow)
+        end  
+        myWindow:addTab(tab, tab_pos)
+        myWindow:raiseAll()
+    end
+    
+    if event.button == "LeftButton" and myWindow.type == "adjustablecontainer" then
+        local tabname = myWindow.tabname
+        local tabwindow = Adjustable.TabWindow.allTabs[tabname]
+        local mytab = tabwindow[tabname]
+        local tempWindow = tabwindow:createTempWindow(mytab)
+        self:changeTabContainer(tab, tempWindow.tabWindow)
+        tempTimer(0, function() tempWindow.tabWindow:activateTab(tab) end)
+        tempWindow:raiseAll()
+        self[tab]:onRelease(self[tab].adjLabel, event)
+        Adjustable.TabWindow.currentWindow = tempWindow.tabWindow
+    end
+    
+    if event.button == "LeftButton" and not(Adjustable.TabWindow.currentWindow) and not floating then
+        self:transformTabContainer(tab)
+        self[tab]:onRelease(self[tab].adjLabel, event)
+    end
+    
+    if floating then
+        self[tab]:onRelease(self[tab].adjLabel, event)
+    end
+    
+    Adjustable.TabWindow.clicked = false
+    Adjustable.TabWindow.currentWindow = nil
+    if not (Adjustable.TabWindow.doubleClick) then
+        Adjustable.TabWindow.clickedTab = nil
+    end
+    tab_pos = nil
+end
+
+-- change the text a tab displays
+function Adjustable.TabWindow:setTabText(which, text)
+    assert(type(which) == "string" or type(which) == "number", "setTabText: bad argument #1 type (tab name/position as string or number expected, got "..type(which).."!)")
+    assert(type(text) == "string", "setTabText: bad argument #2 type (tab text as string expected, got "..type(text).."!)")
+    if not (type(which) == "number" and which &lt;= #self.tabs) then
+        which = table.index_of(self.tabs, which)
+    end
+    
+    if which then
+        self[self.tabs[which]]:setTitle("")
+        self[self.tabs[which]].titleText = "&amp;nbsp;&amp;nbsp;"..text
+        self[self.tabs[which]].tabText = text
+        self[self.tabs[which]].adjLabel:echo(text, "nocolor", "c")
+        setTabToolTip(self[self.tabs[which]])
+        return true
+    end
+    return nil, "setTabText: Couldn't find tab to set a new text"
+end
+
+-- removes a tab (this won't be saved)
+function Adjustable.TabWindow:removeTab(which)
+    assert(type(which) == "string" or type(which) == "number", "removeTab: bad argument #1 type (tab name/position as string or number expected, got "..type(which).."!)")
+    local index
+    if type(which) == "number" and which &lt;= #self.tabs then
+        index = which
+    else
+        index = table.index_of(self.tabs, which)
+    end
+    if index then
+        local tabname = self.tabs[index]
+        self[tabname]:hide()
+        self.header:remove(self[tabname])
+        self.header:organize()
+        table.remove(self.tabs, index)
+        self:activateTab(self.tabs[1])
+        if self.temporary then
+            -- destroy empty tempTabWindow
+            if table.is_empty(self.tabs) then
+                self[tabname].tempWindow:changeContainer("main")
+                Adjustable.TabWindow.all[self.name] = nil
+                table.remove(Adjustable.TabWindow.all_windows, table.index_of(Adjustable.TabWindow.all_windows, self))
+                self[tabname].tempWindow:detach()
+                self[tabname].tempWindow:disconnect()
+                self[tabname].tempWindow:hide()
+                -- delete all references to this tab to avoid it being sent to nirwana if restored
+                for k,v in pairs (Adjustable.TabWindow.allTabs) do
+                    if v.name == self.name then
+                        local styleOrigin = Adjustable.TabWindow.all[self.tempStyle]
+                        Adjustable.TabWindow.allTabs[k] = styleOrigin
+                        styleOrigin[k] = styleOrigin[k] or self[k]
+                        styleOrigin[k.."center"] = styleOrigin[k.."center"] or self[k.."center"]
+                        styleOrigin[k].minimizeLabel:setClickCallback(function() styleOrigin[k]:onMinimizeClick(k) end)
+                        styleOrigin[k].minLabel:setClickCallback(function() styleOrigin[k]:onMinimizeClick(k) end)
+                    end
+                end
+            end
+            self[tabname].tempWindow = nil
+            self[tabname].tempTabWindow = nil
+        end
+        return true
+    end
+    return nil, "removeTab: Couldn't find tab to remove"
+end
+
+-- adds a tab (this won't be saved)
+function Adjustable.TabWindow:addTab(name, pos)
+    assert(type(name) == "string", "addTab: bad argument #1 type (tab name as string expected, got "..type(name).."!)")
+    pos = pos or #self.tabs
+    pos = pos &gt; #self.tabs and #self.tabs or pos
+    assert(type(pos) == "number", "addTab: bad argument #2 type (tab position as number expected, got "..type(pos).."!)")
+    --check if tabName exists already
+    local index = table.index_of(self.tabs, name)
+    -- check if postion is valid
+    if pos &lt; 1 and #self.tabs ~= 0 then
+        return nil, "addTab: not a valid position"
+    end
+    
+    pos = index and pos &gt; #self.tabs and #self.tabs or not(index) and pos == #self.tabs and pos + 1 or pos
+    
+    -- if tab exists and is at the same position already, do nothing
+    if index == pos then
+        self.header:organize()
+        return true
+    end
+    
+    -- if tab exists and position is different, then change the position
+    if index then 
+        table.remove(self.tabs, index)
+        table.remove(self.header.windows, index)
+    end
+    table.insert(self.tabs, pos, name)
+    
+    -- if tab is new create a new Label
+    if not index then
+        self:createTabs()
+    end
+    
+    --If the container isn't the right one change it (useful if removed in one adj tabwindow and added to another)
+    self[name.."center"]:changeContainer(self.footer)
+    self[name]:changeContainer(self.header)  
+    
+    local headername = self[name].name
+    -- if name is already in windows delete it to put it into the right position
+    local headerIndex = table.index_of(self.header.windows, headername)
+    if headerIndex then
+        table.remove(self.header.windows, headerIndex)
+    end
+    table.insert(self.header.windows, pos, headername)
+    self.header.windowList[headername] = self[name]
+    self[name]:show()
+    self.header:organize()
+    self:activateTab(name)
+    if self.temporary then
+        self[name].tempWindow = self.container.container
+        self[name].tempTabWindow = self
+    end
+    
+    -- put ToolTip on Label if TabText is to long to display
+    setTabToolTip(self[name])
+    return true
+end
+
+function Adjustable.TabWindow:addToTabWindow(container)
+    local name = container.name
+    self:addTab(name)
+    container:detach()
+    container:disconnect()
+    container:changeContainer(self[name.."center"])
+    container:resize("100%","100%")
+    container:move(0,0)
+    self[name].tabified = true
+    
+    if container.type == "adjustablecontainer" then
+        container:lockContainer("full")
+        if container.autoSave then
+            container:disableAutoSave()
+        end
+        local titleText = string.gsub(container.titleText, "&amp;nbsp;", "")
+        self:setTabText(name, titleText)
+        self:createTabs()
+    end
+end
+
+--transforms adjcontainer to a floating tab
+function Adjustable.TabWindow:tabify(container)
+    local x, y, width, height = container:get_x(), container:get_y(), container:get_width(), container:get_height()
+    local parent = container.container
+    self:addToTabWindow(container)
+    self:transformTabContainer(container.name)
+    self[container.name]:move(x,y)
+    self[container.name]:resize(width,height)
+    self[container.name]:changeContainer(parent)
+    self:createTempWindow(self[container.name])
+end
+
+function Adjustable.TabWindow:addTabifyMenu(adjcontainer)
+    if adjcontainer.type ~= "adjustablecontainer" then
+        return "not an adjustable container"
+    end
+    adjcontainer:newCustomItem("Tabify", function() self:tabify(adjcontainer) end)
+end
+
+--- saves your container settings
+-- like tab position and some other variables in your Mudlet Profile Dir/ Adjustable.TabWindow
+-- to be reliable it is important that every Adjustable.TabWindow has an unique 'name'
+-- @see Adjustable.TabWindow:load
+function Adjustable.TabWindow:save(slot, dir)
+    if type(self) ~= "table" then
+        dir = slot
+        slot = self
+    end
+    assert(slot == nil or type(slot) == "string" or type(slot) == "number", "Adjustable.TabWindow.save: bad argument #1 type (slot as string or number expected, got "..type(slot).."!)")
+    assert(dir == nil or type(dir) == "string" , "Adjustable.TabWindow.save: bad argument #2 type (directory as string expected, got "..type(dir).."!)")
+    
+    dir = dir or self.defaultDir
+    slot = slot or ""
+    local saveDir = string.format("%s%s%s.lua", dir, "TabWindowTabs", slot)
+    
+    local mytable = {}
+    -- save fixed tabs
+    for k,v in pairs(Adjustable.TabWindow.all) do
+        mytable[k] = {}
+        mytable[k].tabs = v.tabs
+        mytable[k].current = v.current
+        mytable[k].temporary = v.temporary
+    end
+    -- save floating tabs, tempTabWindows and tabified containers
+    for k,v in pairs(Adjustable.TabWindow.allTabs) do
+        
+        --floating tabs
+        if v[k].floating then
+            -- save the tabs adjustable container settings
+            v[k]:save(slot, dir)
+            -- get all floating tabs and their windownames
+            mytable[v.name].floatingTabs = mytable[v.name].floatingTabs or {}
+            mytable[v.name].floatingTabs[k] = "main"
+            if v[k].windowname ~= "main" then
+                mytable[v.name].floatingTabs[k] = v[k].windowname
+            end
+        end
+        
+        --tempTabWindows
+        if v[k].tempWindow then
+            --save tempWindow adjustable container settings
+            v[k].tempWindow:save(slot, dir)
+            mytable[v.name].windowname = v[k].tempWindow.windowname
+            --save window where tempStyle came from
+            mytable[v.name].tempStyle = v[k].tempTabWindow.tempStyle
+        end
+        
+        --tabified containers
+        if v[k].tabified then
+            mytable.tabifiedContainers = mytable.tabifiedContainers or {}
+            mytable.tabifiedContainers[#mytable.tabifiedContainers + 1] = k
+        end
+    end
+    
+    if not(io.exists(dir)) then lfs.mkdir(dir) end
+    table.save(saveDir, mytable)
+end
+
+
+--- restores/loads the before saved settings 
+-- it is very important to load after all TabWindows are created
+-- @see Adjustable.TabWindow:save
+function Adjustable.TabWindow:load(slot, dir)
+    if type(self) ~= "table" then
+        dir = slot
+        slot = self
+    end
+    assert(slot == nil or type(slot) == "string" or type(slot) == "number", "Adjustable.TabWindow.load: bad argument #1 type (slot as string or number expected, got "..type(slot).."!)")
+    assert(dir == nil or type(dir) == "string" , "Adjustable.TabWindow.load: bad argument #2 type (directory as string expected, got "..type(dir).."!)")
+    dir = dir or self.defaultDir
+    local slot = slot or ""
+    local loadDir = string.format("%s%s%s.lua", dir, "TabWindowTabs", slot)
+    local mytable = {}
+    if io.exists(loadDir) then
+        table.load(loadDir, mytable)
+    else
+        return "No saved settings found at: "..loadDir
+    end
+    
+    -- find the tabified container by name
+    local function findWindow(cont, name)
+        cont = cont or Geyser
+        for k, v in pairs(cont.windowList) do
+            if name == v.name then
+                return v
+            end
+            if findWindow(v, name) then
+                return findWindow(v, name)
+            end
+        end
+    end
+    
+    -- create Tabified Windows
+    if mytable.tabifiedContainers then 
+        for k,v in ipairs (mytable.tabifiedContainers) do
+            local container = findWindow(nil, v)
+            if not (Adjustable.TabWindow.allTabs[v]) then 
+                Adjustable.TabWindow.all[Adjustable.TabWindow.all_windows[1]]:addToTabWindow(container)
+            end
+        end
+        mytable.tabifiedContainers = nil
+    end
+    -- create TempWindows and TempTabWindows
+    for k,v in pairs (mytable) do
+        if v.temporary then
+            if not Adjustable.TabWindow.all[k] then
+                local tempStyleWindow = Adjustable.TabWindow.all[v.tempStyle]
+                tempStyleWindow:createTempWindow(nil, k)
+            end
+            Adjustable.TabWindow.all[k].container.container:load(slot, dir)
+            if v.windowname ~= "main" then
+                Adjustable.TabWindow.all[k].container.container:changeContainer(Geyser.windowList[v.windowname.."Container"].windowList[v.windowname])
+            end
+        end
+    end
+    
+    
+    for k,v in pairs(mytable) do
+        -- load fixed Tabs
+        local myWindow = Adjustable.TabWindow.all[k]
+        for k1,v1 in ipairs(v.tabs) do
+            local myTabWindow = Adjustable.TabWindow.allTabs[v1]
+            if myTabWindow then
+                local myTab = myTabWindow[v1]
+                if myTab.floating then
+                    myTabWindow:restoreTab(v1)
+                end
+                if not myWindow.header.windowList[v1] then
+                    myTabWindow:changeTabContainer(v1, myWindow)
+                end
+                myWindow:addTab(v1,k1)
+            end
+        end
+        if myWindow then
+            myWindow:deactivateTab()
+            myWindow.current = v.current
+            tempTimer(0, function() myWindow:activateTab(v.current) end)
+            myWindow:raiseAll() 
+        end
+        -- load floating Tabs
+        if v.floatingTabs then
+            for k1, v1 in pairs(v.floatingTabs) do
+                local myTabWindow = Adjustable.TabWindow.allTabs[k1]
+                local styleTabWindow = Adjustable.TabWindow.all[k]
+                if myTabWindow and styleTabWindow  then
+                    local myTab = myTabWindow[k1]
+                    if myTabWindow ~= styleTabWindow then
+                      myTabWindow:changeTabContainer(k1, styleTabWindow)
+                      myTabWindow = styleTabWindow
+                    end
+                    myTabWindow:transformTabContainer(k1)
+                    -- send my Tab to a UserWindow if saved there
+                    if v1 ~= "main" then
+                        myTab:changeContainer(Geyser.windowList[v1.."Container"].windowList[v1])
+                    end
+                    -- load Adjustable Container settings
+                    myTab:load(slot, dir)
+                end
+            end
+        end        
+    end
+end
+
+-- EMCO by demonnic https://github.com/demonnic/EMCO
+function Adjustable.TabWindow:transferEMCO(emco)
+    local EMCO = EMCO or require("MDK-1.EMCO")
+    emco:hide()
+    local emco_tabs = emco.tabs
+    local emco_tabwindows = emco.consoles
+    local emco_windows = emco.mc
+    
+    -- xEcho override
+    local myXEcho = 
+    function(s, tabName, message, xtype, excludeAll)
+        s.currentTab = self.current        
+        if s.blink and tabName ~= s.currentTab then
+            if not (s.allTabName == s.currentTab and not s.blinkFromAll) then
+                s.tabsToBlink[tabName] = true
+            end
+        end   
+        EMCO.xEcho(s, tabName, message, xtype, excludeAll)
+    end
+    
+    -- Flash override
+    local myFlash = 
+    function(s)
+        Geyser.Container.flash(s) 
+        raiseWindow(s.name .."_dimensions_flash")
+    end
+    -- doBlink override
+    local myDoBlink =
+    function(s)
+        s.currentTab = self.current
+        if s.blink then
+            if s.allTab and not s.blinkFromAll and (s.currentTab == s.allTabName or self[s.allTabName.."center"].hidden == false) then
+                s.tabsToBlink = {}
+            elseif s.tabsToBlink[s.currentTab] then
+                s.tabsToBlink[s.currentTab] = nil
+            end
+        end    
+        for tab,_ in pairs(s.tabsToBlink) do
+            if not self[tab].floating and self[tab.."center"].hidden then
+                s.tabs[tab]:flash()
+            else
+                s.tabsToBlink[tab] = nil
+            end
+        end
+    end
+    
+    --function for transfering tab and console
+    local function transferTab(tabwindow)
+        emco_windows[tabwindow]:show()
+        emco_windows[tabwindow]:changeContainer(self[tabwindow.."center"])
+        emco_tabs[tabwindow]:changeContainer(self[tabwindow])
+        emco_tabs[tabwindow]:move(0,0)
+        emco_tabs[tabwindow]:resize("100%","100%")
+        emco_tabs[tabwindow]:hide()
+        emco_tabs[tabwindow].flash = myFlash
+        if emco_tabs[tabwindow].font then
+            self[tabwindow].adjLabel:setFont(emco_tabs[tabwindow].font)
+        end  
+    end
+    
+    --addTab override
+    local myAddTab =
+    function(s, tabName, position)
+        EMCO.addTab(s, tabName)
+        self:addTab(tabName, position)
+        transferTab(tabName)
+        self:activateTab(tabName)
+    end
+    
+    --removeTab override
+    local myRemoveTab =
+    function(s, tabName)
+        EMCO.removeTab(s, tabName)
+        if self[tabName].floating then
+            self:restoreTab(tabName)
+        end
+        Adjustable.TabWindow.allTabs[tabName]:removeTab(tabName)
+    end
+    
+    --transfering process
+    self.tabs = table.n_union(self.tabs, emco_tabwindows)
+    self:createTabs()
+    for k,v in ipairs(emco_tabwindows) do
+        transferTab(v)
+    end
+    self:activateTab(emco.currentTab)
+    emco.reset = function() end
+    emco.removeTab = myRemoveTab
+    emco.addTab = myAddTab
+    emco.xEcho = myXEcho
+    emco.doBlink = myDoBlink
+    emco.setGap = function(s, gap) EMCO.setGap(s, gap) self:setGap(math.max(2,gap) -2) end
+    emco.setTabHeight = function(s, height) EMCO.setTabHeight(s, height) self:setTabHeight(height+2) end
+    emco.setTabBoxColor = function(s, color) EMCO.setTabBarColor(s, color) self:setTabBarColor(color) end
+    emco.setTabBoxCSS = function(s, css) EMCO.setTabBoxCSS(s, css) self:setTabBarCSS(css) end
+    emco.setActiveTabBGColor = function(s, color) self:setActiveTabBGColor(color) EMCO.setActiveTabBGColor(s, color) end
+    emco.setInactiveTabBGColor = function(s, color) self:setInactiveTabBGColor(color) EMCO.setInactiveTabBGColor(s, color) end
+    emco.setActiveTabFGColor = function(s, color) EMCO.setActiveTabFGColor(s, color) self:setActiveTabFGColor(color) end
+    emco.setInactiveTabFGColor = function(s, color) EMCO.setInactiveTabFGColor(s, color) self:setInactiveTabFGColor(color) end
+    emco.setSingleTabFont = function(s, tab, font) EMCO.setSingleTabFont(s, tab, font) self:setSingleTabFont(tab, font) end
+    emco.setTabFont = function(s, font) EMCO.setTabFont(s, font) self:setTabFont(font) end
+    emco.save = function(s, slot, dir) EMCO.save(s) self:save(slot, dir) end
+    emco.load = function(s, slot, dir) EMCO.load(s) self:load(slot, dir) end
+end
+
+-- EMCO by demonnic https://github.com/demonnic/EMCO
+-- convert EMCO to Adjustable TabWindow
+function Adjustable.TabWindow.convertEMCO(emco)
+    if emco.myTabWindow then
+        return
+    end
+    emco.myTabWindow = emco.myTabWindow or Adjustable.TabWindow:new({
+        name = emco.name.."TabWindow", 
+        x = emco.x, 
+        y = emco.y, 
+        width = emco.width, 
+        height = emco.height,
+        centerStyle = "background-color: rgba(0,0,0,0);",
+        footerStyle = "background-color: rgba(0,0,0,0);",
+        activeTabStyle = emco.activeTabCSS,
+        inactiveTabStyle = emco.inactiveTabCSS,
+        tabBarHeight  = emco.tabHeight + 2,
+        gap = emco.gap - 2,
+    },emco.container)
+    emco.myTabWindow:setActiveTabFGColor(emco.activeTabFGColor)
+    emco.myTabWindow:setInactiveTabFGColor(emco.inactiveTabFGColor)
+    emco.myTabWindow:setActiveTabBGColor(emco.activeTabBGColor)
+    emco.myTabWindow:setInactiveTabBGColor(emco.inactiveTabBGColor)
+    emco.myTabWindow:transferEMCO(emco)
+    emco.hide = function() Geyser.Container.hide(emco.myTabWindow) end
+    emco.show = function() Geyser.Container.show(emco.myTabWindow) end
+    emco:show()
+end
+
+-- Save a reference to our parent constructor
+Adjustable.TabWindow.parent = Geyser.Container
+-- Create table to put every Adjustable.TabWindow in it
+Adjustable.TabWindow.all = Adjustable.TabWindow.all or {}
+Adjustable.TabWindow.all_windows = Adjustable.TabWindow.all_windows or {}
+Adjustable.TabWindow.allTabs = Adjustable.TabWindow.allTabs or {}
+
+-- tabwindow constructor
+function Adjustable.TabWindow:new(cons, container)
+    Geyser.HBox.organize = Geyser.HBox.organize or Geyser.HBox.reposition
+    local me = self.parent:new(cons, container)
+    cons = cons or {}
+    setmetatable(me, self)
+    self.__index = self
+    me.type = "adjustabletabwindow"
+    me.defaultDir = me.defaultDir or getMudletHomeDir().."/AdjustableTabWindow/"
+    me.tabs = me.tabs or {}
+    me.tabTxtColor = me.tabTxtColor or "white"
+    me.tabPadding = me.tabPadding or 12
+    me.color1 = me.color1 or "rgb(0,0,100)"
+    me.color2 = me.color2 or "rgb(0,0,70)"
+    me.activeTabBGColor = me.activeTabBGColor or me.color1
+    me.inactiveTabBGColor = me.inactiveTabBGColor or me.color2
+    me.tabBarHeight = me.tabBarHeight or "35"
+    me.gap = me.gap or 0
+    me.footerStyle = me.footerStyle or [[
+    background-color: ]]..me.color1..[[;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+    ]]
+    
+    me.centerStyle = me.centerStyle or [[
+    background-color: ]]..me.color2..[[;
+    border-radius: 10px;
+    margin: 5px;
+    ]]
+    
+    me.inactiveTabStyle = me.inactiveTabStyle or [[QLabel::hover{
+        background-color: ]]..me.activeTabBGColor..[[;
+        color: ]]..me.tabTxtColor..[[;
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+        margin-right: 1px;
+        margin-left: 1px;
+        qproperty-alignment: 'AlignVCenter';
+    }
+    QLabel::!hover{
+        background-color: ]]..me.inactiveTabBGColor..[[;
+        color: ]]..me.tabTxtColor..[[;
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+        margin-right: 1px;
+        margin-left: 1px;
+        qproperty-alignment: 'AlignVCenter';
+    }
+    ]]
+    
+    me.activeTabStyle = me.activeTabStyle or [[
+    background-color: ]]..me.activeTabBGColor..[[;
+    color: ]]..me.tabTxtColor..[[;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    margin-right: 1px;
+    margin-left: 1px;
+    qproperty-alignment: 'AlignVCenter';
+    ]]
+    
+    me.chosenTabStyle = me.chosenTabStyle or [[
+    background-color: rgba(255,30,0,60%);
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    margin-right: 1px;
+    margin-left: 1px;
+    color: ]]..me.tabTxtColor..[[;
+    
+    ]]
+    
+    
+    me.overlayStyle = me.overlayStyle or [[
+    background-color: rgba(0,0,0,0%);
+    border: 2px solid white;]]
+    
+    me.tabBarStyle = me.tabBarStyle or [[
+    background-color: rgba(0,0,0,0%);
+    ]]
+    
+    me.tempWindowConf = me.tempWindowConf or 
+    {
+        buttonsize = "12",
+        buttonFontSize = "7",
+        padding = 9,
+        buttonstyle = [[
+        QLabel{ border-radius: 4px; background-color: rgba(80,80,80,80%);}
+        QLabel::hover{ background-color: rgba(60,60,60,50%);}
+        ]],
+        adjLabelstyle = [[background-color: rgba(0,0,0,90%); border: 2px solid rgb(50,50,50);]]
+    }
+    
+    me:createBaseContainers()
+    me:createTabs()
+    
+    if me.tabBarColor then 
+        me:setTabBarColor(me.tabBarColor)
+    else
+        me.tabBarColor = "black"
+    end
+    
+    local found = string.match(" "..me.activeTabStyle, "(%scolor:).-(;)")
+    if not(found) then
+        me.activeTabFGColor = me.activeTabFGColor or me.tabTxtColor
+    end
+    
+    found = string.match(" "..me.inactiveTabStyle, "(%scolor:).-(;)")
+    if not(found) then
+        me.inactiveTabFGColor = me.inactiveTabFGColor or me.tabTxtColor
+    end
+    
+    if me.activeTabFGColor then 
+        me:setActiveTabFGColor(me.activeTabFGColor)
+    end
+    if me.inactiveTabFGColor then
+        me:setInactiveTabFGColor(me.inactiveTabFGColor)
+    end
+    
+    me.current = me.current or me.tabs[#me.tabs]
+    
+    if me.tabs[1] then
+        me:activateTab(me.tabs[1])
+    end
+    tempTimer(0, 
+    function()
+        local tabNr = #me.tabs 
+        if me.tabs[1] and tabNr &gt; 1 then 
+            me[me.tabs[tabNr].."center"]:hide()
+        end 
+    end )
+    
+    if not Adjustable.TabWindow.all[me.name] then
+        Adjustable.TabWindow.all_windows[#Adjustable.TabWindow.all_windows + 1] = me.name
+    end
+    Adjustable.TabWindow.all[me.name] = me
+    
+    return me
+end</script>
+				<eventHandlerList />
+			</Script>
+			<ScriptGroup isActive="yes" isFolder="yes">
+				<name>FEDUI</name>
+				<packageName></packageName>
+				<script>FEDUI = FEDUI or {}</script>
+				<eventHandlerList />
+				<Script isActive="yes" isFolder="no">
+					<name>Fed2UI</name>
+					<packageName></packageName>
+					<script>--===[ generate the adjustable containers everything goes into ]===--
+function FEDUI.buildFramework()
+
+  local FrameCSS = [[
+    background-color: black;
+    border-style: solid;
+    border-width: 1px;
+    border-radius: 5;
+    border-color: white;
+    margin: 1px;
+  ]]
+
+-----[ build the actual boxes, style and attach them ]-----
+--left box for overflow
+  FEDUI.leftFrame = Adjustable.Container:new({ 
+    name = "FEDUI.leftFrame",
+    titleText = "FEDUI.leftFrame",
+    x = "0%", y = "0%",
+    width = "15%", height = "100%",
+    adjLabelstyle = FEDUI.FrameCSS, 
+    attached = "left" 
+  })
+
+--right box for map, comms, and cargo
+--sadly we can't have an 'upper' and 'lower' box at this point
+--because adjustable containers only attach to borders and not to each other
+--and it's too much work to integrate code that'll change that
+  FEDUI.rightFrame = Adjustable.Container:new({ 
+    name = "FEDUI.rightFrame",
+    titleText = "FEDUI.rightFrame",
+    x = "-20%", y = "0%",
+    width = "20%", height = "100%",
+    adjLabelstyle = FEDUI.FrameCSS, 
+    attached = "right" 
+  })
+
+--top box for stats
+  FEDUI.topFrame = Adjustable.Container:new({
+    name = "FEDUI.topFrame",
+    titleText = "FEDUI.topFrame",
+    x = "15%", y = "0%",
+    width = "65%", height = "5%",
+    adjLabelstyle = FEDUI.FrameCSS, 
+    attached = "top" 
+  })
+
+-----[ add connect menu to the frames, so users can connect/disconnect them ]-----
+  Adjustable.Container:doAll(function(self) self:addConnectMenu() end)
+  
+-----[ connect the containers ourselves ]-----
+  FEDUI.leftFrame:connectToBorder("left")
+  FEDUI.rightFrame:connectToBorder("right")
+  FEDUI.topFrame:connectToBorder("left")
+  FEDUI.topFrame:connectToBorder("right")
+
+-----[ lock the containers in place ]-----
+  FEDUI.leftFrame:lockContainer("border")
+  FEDUI.rightFrame:lockContainer("border")
+  FEDUI.topFrame:lockContainer("border")
+
+end
+
+--===[ populate the top framework with labels ]===--
+function FEDUI.buildHeader()
+
+--build the hbox the stat labels will go into
+  FEDUI.header = Geyser.HBox:new({
+    name = "FEDUI.header",
+    x = 0, y = 0,
+    width = "100%",
+    height = "100%",
+  }, FEDUI.topFrame)
+
+--create the labels inside the box
+--six labels: rank, hold space, fuel, stamina, groats, slithies
+  for i = 1, 6 do
+    FEDUI["Label"..i] = Geyser.Label:new({
+      name = "FEDGUI.label"..i,
+      --message = "test text",
+    }, FEDUI.header)
+  end
+
+--style the labels: background color and a little border between each label
+  local LabelCSS = [[
+    background-color: rgba(77,77,77,100); /*because DimGrey is not dark enough*/
+    border-right-style: solid;
+    border-left-style: solid;
+    border-width: 1px;
+    border-radius: 1;
+    border-color: white;
+  ]]
+    
+  FEDUI.Label1:setStyleSheet(LabelCSS)
+  FEDUI.Label1:setFontSize(12)
+  
+  FEDUI.Label2:setStyleSheet(LabelCSS)
+  FEDUI.Label2:setFontSize(12)
+  
+  FEDUI.Label3:setStyleSheet(LabelCSS)
+  FEDUI.Label3:setFontSize(12)
+  
+  FEDUI.Label4:setStyleSheet(LabelCSS)
+  FEDUI.Label4:setFontSize(12)
+  
+  FEDUI.Label5:setStyleSheet(LabelCSS)
+  FEDUI.Label5:setFontSize(12)
+  
+  FEDUI.Label6:setStyleSheet(LabelCSS)
+  FEDUI.Label6:setFontSize(12)
+
+end
+
+--===[ populate the framework with tabs - requires AdjustableTabWindow ]===--
+function FEDUI.buildTabs()
+
+-----[ styling for tabs ]-----
+--wanted: some method to set text size on tabs
+
+  local activeTabText = "white" --active tab text color
+  local activeTabColor = "black" --active tab window color
+  
+  local inactiveTabText = "lightgrey" --inactive tab text color
+  local inactiveTabColor = "dimgrey" --inactive tab window color
+
+--active tab 
+  activeTabCSS = activeTabCSS or [[
+    background-color: ]]..activeTabColor..[[;
+    color: ]]..activeTabText..[[;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    border-width: 1px;
+    border-style: solid;
+    border-color: ]]..activeTabText..[[;
+    margin-right: 1px;
+    margin-left: 1px;
+    qproperty-alignment: 'AlignVCenter';
+    ]]
+    
+--inactive tab - will highlight with the active tab colors on mouseover
+    inactiveTabCSS = inactiveTabCSS or [[QLabel::hover{
+        background-color: ]]..activeTabColor..[[;
+        color: ]]..activeTabText..[[;
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+        border-width: 1px;
+        border-style: solid;
+        border-color: ]]..activeTabText..[[;
+        margin-right: 1px;
+        margin-left: 1px;
+        qproperty-alignment: 'AlignVCenter';
+    }
+    QLabel::!hover{
+        background-color: ]]..inactiveTabColor..[[;
+        color: ]]..inactiveTabText..[[;
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+        margin-right: 1px;
+        margin-left: 1px;
+        qproperty-alignment: 'AlignVCenter';
+    }
+    ]]
+
+--the outer border of the window, which should never be seen since it's being covered by a container
+  local footerCSS = [[
+    background-color: ]] .. activeTabColor..[[;
+    border-bottom-left-radius: 1px;
+    border-bottom-right-radius: 1px;
+    border-width: 1px;
+    border-style: solid;
+    border-color: ]]..activeTabText..[[;
+    ]]
+  
+--the core of the window, which should never be seen because we're using it as a container
+  local centerCSS = [[
+    background-color: ]]..inactiveTabColor..[[;
+    border-radius: 5px;
+    margin: 5px;
+  ]]
+
+-----[ place Overflow/Commodities tab windows ]-----
+  FEDUI.tabLeft = Adjustable.TabWindow:new({
+    name = "FEDUI.tabLeft",
+    x = "0%", y = "0%",
+    width = "100%",
+    height = "100%",
+    tabBarHeight = "5%",
+    tabs = {"Overflow", "Commodities"},
+    activeTabStyle = activeTabCSS,
+    inactiveTabStyle = inactiveTabCSS,
+    footerStyle = footerCSS,
+    centerStyle = centerCSS,
+  }, FEDUI.leftFrame)
+    
+  
+-----[ build and place Map and Comm/Cargo tab windows ]-----
+--the box these two tab windows will go into
+  FEDUI.vboxRight = Geyser.VBox:new({
+    name = "FEDUI.vboxRight",
+    x = 0,
+    y = 0,
+    width = "100%",
+    height = "100%",
+  }, FEDUI.rightFrame)
+  
+--map tab
+  FEDUI.tabTopRight = Adjustable.TabWindow:new(
+    {
+      name             = "FEDUI.tabTopRight",
+      x                = "0%",
+      y                = "0%",
+      width            = "100%",
+      height           = "100%",
+      tabBarHeight     = "10%",
+      tabs             = {"fedmap","Comm"},
+      activeTabStyle   = activeTabCSS,
+      inactiveTabStyle = inactiveTabCSS,
+      footerStyle      = footerCSS,
+      centerStyle      = centerCSS,
+    },
+    FEDUI.vboxRight
+  )
+  
+  --cargo and commerce tabs
+  FEDUI.tabBottomRight = Adjustable.TabWindow:new(
+    {
+      name             = "FEDUI.tabBottomRight",
+      x                = "0%",
+      y                = "0%",
+      width            = "100%",
+      height           = "100%",
+      tabBarHeight     = "10%",
+      tabs             = {"Cargo","Hauling","Trading"},
+      activeTabStyle   = activeTabCSS,
+      inactiveTabStyle = inactiveTabCSS,
+      footerStyle      = footerCSS,
+      centerStyle      = centerCSS,
+    },
+    FEDUI.vboxRight
+  )
+end
+
+-- populate our various tabs
+function FEDUI.popUI()
+
+  local textSize = 12
+
+  --put map into map window
+  FEDUI.mapper = Geyser.Mapper:new(
+    {
+      name   = "fedmap",
+      x      = 0,
+      y      = 0, 
+      width  = "100%",
+      height = "100%",
+    },
+    FEDUI.tabTopRight.fedmapcenter
+  )
+
+  --put overflow console in overflow tab
+  FEDUI.overflowWindow = Geyser.MiniConsole:new(
+    {
+      name      = "FEDUI.overflowWindow",
+      x         = "0%",
+      y         = "0%",
+      width     = "100%",
+      height    = "100%",
+      autoWrap  = true,
+      scrollBar = false,
+      fontSize  = textSize,
+      color     = "black",
+    },
+    FEDUI.tabLeft.Overflowcenter
+  )
+  
+  --put commodities console in commodities tab
+  FEDUI.commoditiesWindow = Geyser.MiniConsole:new(
+    {
+      name      = "FEDUI.commoditiesWindow",
+      x         = "0%",
+      y         = "0%",
+      width     = "100%",
+      height    = "100%",
+      autoWrap  = true,
+      scrollBar = true,
+      fontSize  = textSize,
+      color     = "black",
+    },
+    FEDUI.tabLeft.Commoditiescenter
+  )
+  
+  --put chat console in chat tab
+  FEDUI.chatWindow = Geyser.MiniConsole:new(
+    {
+      name      = "FEDUI.chatWindow",
+      x         = "0%",
+      y         = "0%",
+      width     = "100%",
+      height    = "100%",
+      autoWrap  = true,
+      scrollBar = false,
+      fontSize  = textSize,
+      color     = "black",
+    },
+    FEDUI.tabTopRight.Commcenter
+  )
+    
+  --put cargo console in cargo tab
+  FEDUI.cargoWindow = Geyser.MiniConsole:new(
+    {
+      name      = "FEDUI.cargoWindow",
+      x         = "0%",
+      y         = "0%",
+      width     = "100%",
+      height    = "100%",
+      autoWrap  = true,
+      scrollBar = false,
+      fontSize  = textSize,
+      color     = "black",
+    },
+    FEDUI.tabBottomRight.Cargocenter
+  )
+  
+  --put hauling container in hauling tab
+  FEDUI.haulingContainer = Geyser.Container:new(
+    {
+      name   = "FEDUI.haulingContainer",
+      x      = "0%",
+      y      = "0%",
+      width  = "100%",
+      height = "100%",
+    },
+    FEDUI.tabBottomRight.Haulingcenter
+  )
+  
+  -- Button bar at top
+  FEDUI.haulingButtonBar = Geyser.HBox:new(
+    {
+      name   = "FEDUI.haulingButtonBar",
+      x      = 0,
+      y      = 0,
+      width  = "100%",
+      height = "25px",
+    },
+    FEDUI.haulingContainer
+  )
+  
+  -- Cargo display window below button bar
+  FEDUI.haulingWindow = Geyser.MiniConsole:new(
+    {
+      name      = "FEDUI.haulingWindow",
+      x         = "0%",
+      y         = "25px",
+      width     = "100%",
+      height    = "100%-25px",
+      autoWrap  = true,
+      scrollBar = true,
+      fontSize  = 12,
+      color     = "black",
+    },
+    FEDUI.haulingContainer
+  )
+
+--put trading container in trading tab
+  FEDUI.tradingContainer = Geyser.Container:new(
+    {
+      name   = "FEDUI.tradingContainer",
+      x      = "0%",
+      y      = "0%",
+      width  = "100%",
+      height = "100%",
+    },
+    FEDUI.tabBottomRight.Tradingcenter
+  )
+  
+  -- Button bar at top
+  FEDUI.tradingButtonBar = Geyser.HBox:new(
+    {
+      name   = "FEDUI.tradingButtonBar",
+      x      = 0,
+      y      = 0,
+      width  = "100%",
+      height = "25px",
+    },
+    FEDUI.tradingContainer
+  )
+  
+  -- Cargo display window below button bar
+  FEDUI.tradingWindow = Geyser.MiniConsole:new(
+    {
+      name      = "FEDUI.tradingWindow",
+      x         = "0%",
+      y         = "25px",
+      width     = "100%",
+      height    = "100%-25px",
+      autoWrap  = true,
+      scrollBar = true,
+      fontSize  = 12,
+      color     = "black",
+    },
+    FEDUI.tradingContainer
+  )
+end
+
+--===[ build the UI at connection ]===--
+function FEDUI.buildUI()
+  FEDUI.buildFramework()
+  FEDUI.buildHeader()
+  FEDUI.buildTabs()
+  FEDUI.popUI()
+  FEDUI.buildMovementButtons()
+  FEDUI.registerGMCPHandlers()
+  FEDUI.outputCommodities()
+end
+
+--should run on install, check that this package is what has been installed,
+--remove the generic mapper, then build the UI
+function FEDUI.onInstall(event, package, path)
+  if package == "fed2ui" then
+    if table.contains(getPackages(),"generic_mapper") then
+      uninstallPackage("generic_mapper")
+    end
+    FEDUI.buildUI()
+  end
+end
+
+registerAnonymousEventHandler("sysConnectionEvent", FEDUI.buildUI)
+registerAnonymousEventHandler("sysInstallPackage", FEDUI.onInstall)</script>
+					<eventHandlerList />
+				</Script>
+				<Script isActive="yes" isFolder="no">
+					<name>fedMapCommands</name>
+					<packageName></packageName>
+					<script>FEDUI.movement         = FEDUI.movement or {}
+FEDUI.movement.visible = true
+
+-- Build Movement Buttons
+function FEDUI.buildMovementButtons()
+  
+  -- Modern button styling
+  local buttonCSS = [[
+    QLabel{
+      background-color: rgba(40, 40, 45, 200);
+      border-style: solid;
+      border-width: 1px;
+      border-radius: 3px;
+      border-color: rgba(100, 100, 110, 180);
+      color: rgba(200, 200, 210, 255);
+      font-size: 11px;
+      font-weight: bold;
+    }
+    QLabel::hover{
+      background-color: rgba(60, 60, 70, 220);
+      border-color: rgba(120, 180, 255, 200);
+      color: white;
+    }
+  ]]
+  
+  local disabledButtonCSS = [[
+    QLabel{
+      background-color: rgba(25, 25, 28, 150);
+      border-style: solid;
+      border-width: 1px;
+      border-radius: 3px;
+      border-color: rgba(60, 60, 65, 120);
+      color: rgba(80, 80, 85, 180);
+      font-size: 11px;
+      font-weight: bold;
+    }
+  ]]
+  
+  local toggleButtonCSS = [[
+    QLabel{
+      background-color: rgba(50, 50, 55, 220);
+      border-style: solid;
+      border-width: 1px;
+      border-radius: 3px;
+      border-color: rgba(120, 120, 130, 200);
+      color: rgba(220, 220, 230, 255);
+      font-size: 10px;
+      font-weight: bold;
+    }
+    QLabel::hover{
+      background-color: rgba(70, 130, 180, 240);
+      border-color: rgba(150, 200, 255, 230);
+      color: white;
+    }
+  ]]
+  
+  ------------- Main Container -------------------------------
+  FEDUI.mapCommandsContainer = Geyser.Container:new(
+    {
+      name   = "FEDUI.mapCommandsContainer",
+      x      = "1%",
+      y      = "-170px",
+      width  = "25%",
+      height = 180
+    },
+    FEDUI.tabTopRight.fedmapcenter
+  )
+  
+  ------------- IN/OUT Container -----------------------------
+  FEDUI.inOutBox = Geyser.Container:new(
+    {
+      name   = "FEDUI.inOutBox",
+      x      = "50%-40px",
+      y      = 5,
+      width  = 80,
+      height = 22
+    },
+    FEDUI.mapCommandsContainer
+  )
+  
+  ------------- IN Button ------------------------------------
+  FEDUI.btnIn = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnIn",
+      x       = 0,
+      y       = 0,
+      width   = 37,
+      height  = 22,
+      message = "&lt;center&gt;IN&lt;/center&gt;"
+    },
+    FEDUI.inOutBox
+  )
+
+  FEDUI.btnIn:setStyleSheet(buttonCSS)
+  FEDUI.btnIn:setClickCallback("FEDUI.moveIn")
+  
+  ------------- OUT Button -----------------------------------
+  FEDUI.btnOut = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnOut",
+      x       = 42,
+      y       = 0,
+      width   = 37,
+      height  = 22,
+      message = "&lt;center&gt;OUT&lt;/center&gt;"
+    },
+    FEDUI.inOutBox
+  )
+
+  FEDUI.btnOut:setStyleSheet(buttonCSS)
+  FEDUI.btnOut:setClickCallback("FEDUI.moveOut")
+  
+  ------------- Compass Container ----------------------------
+  FEDUI.cardinalBox = Geyser.Container:new(
+    {
+      name   = "FEDUI.cardinalBox",
+      x      = "50%-60px",
+      y      = 32,
+      width  = 120,
+      height = 120
+    },
+    FEDUI.mapCommandsContainer
+  )
+  
+  -- Button standards for compass
+  local btnSize = 35
+  local btnGap  = 5
+  
+  ------------- NW Button ------------------------------------
+  FEDUI.btnNW = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnNW",
+      x       = 0,
+      y       = 0,
+      width   = btnSize,
+      height  = btnSize,
+      message = "&lt;center&gt;NW&lt;/center&gt;"
+    },
+    FEDUI.cardinalBox
+  )
+  
+  FEDUI.btnNW:setStyleSheet(buttonCSS)
+  FEDUI.btnNW:setClickCallback("FEDUI.moveNW")
+  
+  ------------- N Button -------------------------------------
+  FEDUI.btnN = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnN",
+      x       = btnSize + btnGap,
+      y       = 0,
+      width   = btnSize,
+      height  = btnSize,
+      message = "&lt;center&gt;N&lt;/center&gt;"
+    },
+    FEDUI.cardinalBox
+  )
+  
+  FEDUI.btnN:setStyleSheet(buttonCSS)
+  FEDUI.btnN:setClickCallback("FEDUI.moveN")
+  
+  ------------- NE Button ------------------------------------
+  FEDUI.btnNE = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnNE",
+      x       = (btnSize + btnGap) * 2,
+      y       = 0,
+      width   = btnSize,
+      height  = btnSize,
+      message = "&lt;center&gt;NE&lt;/center&gt;"
+    },
+    FEDUI.cardinalBox
+  )
+  
+  FEDUI.btnNE:setStyleSheet(buttonCSS)
+  FEDUI.btnNE:setClickCallback("FEDUI.moveNE")
+  
+  ------------- W Button -------------------------------------
+  FEDUI.btnW = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnW",
+      x       = 0,
+      y       = btnSize + btnGap,
+      width   = btnSize,
+      height  = btnSize,
+      message = "&lt;center&gt;W&lt;/center&gt;"
+    },
+    FEDUI.cardinalBox
+  )
+  
+  FEDUI.btnW:setStyleSheet(buttonCSS)
+  FEDUI.btnW:setClickCallback("FEDUI.moveW")
+  
+  ------------- LOOK Button ----------------------------------
+  FEDUI.btnLook = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnLook",
+      x       = btnSize + btnGap,
+      y       = btnSize + btnGap,
+      width   = btnSize,
+      height  = btnSize,
+      message = "&lt;center&gt;👁&lt;/center&gt;"
+    },
+    FEDUI.cardinalBox
+  )
+  
+  FEDUI.btnLook:setStyleSheet(buttonCSS)
+  FEDUI.btnLook:setClickCallback("FEDUI.look")
+  
+  ------------- E Button -------------------------------------
+  FEDUI.btnE = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnE",
+      x       = (btnSize + btnGap) * 2,
+      y       = btnSize + btnGap,
+      width   = btnSize,
+      height  = btnSize,
+      message = "&lt;center&gt;E&lt;/center&gt;"
+    },
+    FEDUI.cardinalBox
+  )
+  
+  FEDUI.btnE:setStyleSheet(buttonCSS)
+  FEDUI.btnE:setClickCallback("FEDUI.moveE")
+  
+  ------------- SW Button ------------------------------------
+  FEDUI.btnSW = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnSW",
+      x       = 0,
+      y       = (btnSize + btnGap) * 2,
+      width   = btnSize,
+      height  = btnSize,
+      message = "&lt;center&gt;SW&lt;/center&gt;"
+    },
+    FEDUI.cardinalBox
+  )
+  
+  FEDUI.btnSW:setStyleSheet(buttonCSS)
+  FEDUI.btnSW:setClickCallback("FEDUI.moveSW")
+  
+  ------------- S Button -------------------------------------
+  FEDUI.btnS = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnS",
+      x       = btnSize + btnGap,
+      y       = (btnSize + btnGap) * 2,
+      width   = btnSize,
+      height  = btnSize,
+      message = "&lt;center&gt;S&lt;/center&gt;"
+    },
+    FEDUI.cardinalBox
+  )
+  
+  FEDUI.btnS:setStyleSheet(buttonCSS)
+  FEDUI.btnS:setClickCallback("FEDUI.moveS")
+  
+  ------------- SE Button ------------------------------------
+  FEDUI.btnSE = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnSE",
+      x       = (btnSize + btnGap) * 2,
+      y       = (btnSize + btnGap) * 2,
+      width   = btnSize,
+      height  = btnSize,
+      message = "&lt;center&gt;SE&lt;/center&gt;"
+    },
+    FEDUI.cardinalBox
+  )
+  
+  FEDUI.btnSE:setStyleSheet(buttonCSS)
+  FEDUI.btnSE:setClickCallback("FEDUI.moveSE")
+  
+  ------------- UP/DOWN Container ----------------------------
+  FEDUI.verticalBox = Geyser.Container:new(
+    {
+      name   = "FEDUI.verticalBox",
+      x      = "50%+60px",
+      y      = 61,
+      width  = 70,
+      height = 120,
+    },
+    FEDUI.mapCommandsContainer
+  )
+  
+  ------------- UP Button ------------------------------------
+  FEDUI.btnUp = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnUp",
+      x       = 0,
+      y       = 0,
+      width   = 25,
+      height  = 28,
+      message = "&lt;center&gt;UP&lt;/center&gt;"
+    },
+    FEDUI.verticalBox
+  )
+  
+  FEDUI.btnUp:setStyleSheet(buttonCSS)
+  FEDUI.btnUp:setClickCallback("FEDUI.moveUp")
+  
+  ------------- DOWN Button ----------------------------------
+  FEDUI.btnDown = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnDown",
+      x       = 0,
+      y       = 30,
+      width   = 25,
+      height  = 28,
+      message = "&lt;center&gt;DN&lt;/center&gt;"
+    },
+    FEDUI.verticalBox
+  )
+  
+  FEDUI.btnDown:setStyleSheet(buttonCSS)
+  FEDUI.btnDown:setClickCallback("FEDUI.moveDown")
+  
+  ------------- Show/Hide Button -----------------------------
+  FEDUI.btnShowHide = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnShowHide",
+      x       = "100%",
+      y       = 127,
+      width   = 80,
+      height  = 18,
+      message = "&lt;center&gt;Hide Buttons&lt;/center&gt;"
+    },
+    FEDUI.mapCommandsContainer
+  )
+  
+  FEDUI.btnShowHide:setStyleSheet(toggleButtonCSS)
+  FEDUI.btnShowHide:setClickCallback("FEDUI.toggleMovementButtons")
+  
+  ------------- Buy Fuel Button ------------------------------
+  FEDUI.btnFuel = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnFuel",
+      x       = "100%+85px",
+      y       = 127,
+      width   = 55,
+      height  = 18,
+      message = "&lt;center&gt;Buy Fuel&lt;/center&gt;"
+    },
+    FEDUI.mapCommandsContainer
+  )
+  
+  FEDUI.btnFuel:setStyleSheet(buttonCSS)
+  FEDUI.btnFuel:setClickCallback("FEDUI.buyFuel")
+  
+  ------------- Work Button --------------------------------
+  FEDUI.btnWork = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnWork",
+      --x       = "100%+160px",
+      --y       = 127,
+      --width   = 25,
+      --height  = 20,
+      message = "&lt;center&gt;W&lt;/center&gt;"
+    },
+    FEDUI.haulingButtonBar
+  )
+  
+  FEDUI.btnWork:setStyleSheet(buttonCSS)
+  FEDUI.btnWork:setClickCallback("FEDUI.work")
+  
+  ------------- Collect Button -------------------------------
+  FEDUI.btnCollect = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnCollect",
+      --x       = "100%+187px",
+      --y       = 127,
+      --width   = 25,
+      --height  = 20,
+      message = "&lt;center&gt;C&lt;/center&gt;"
+    },
+    FEDUI.haulingButtonBar
+  )
+  
+  FEDUI.btnCollect:setStyleSheet(buttonCSS)
+  FEDUI.btnCollect:setClickCallback("FEDUI.collect")
+
+  ------------- Deliver Button -------------------------------
+  FEDUI.btnDeliver = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnDeliver",
+      --x       = "100%+214px",
+      --y       = 127,
+      --width   = 25,
+      --height  = 20,
+      message = "&lt;center&gt;D&lt;/center&gt;"
+    },
+    FEDUI.haulingButtonBar
+  )
+  FEDUI.btnDeliver:setStyleSheet(buttonCSS)
+  FEDUI.btnDeliver:setClickCallback("FEDUI.deliver")
+
+  ------------- Check Price Commodity Dropdown ---------------
+  FEDUI.cPriceDropDown = Geyser.Label:new(
+    {
+      name   = "FEDUI.cPriceDropDown",
+      message = "&lt;center&gt;Select Commodity ▼&lt;/center&gt;",
+    },
+    FEDUI.tradingButtonBar
+  )
+  FEDUI.cPriceDropDown:setStyleSheet(buttonCSS)
+  FEDUI.cPriceDropDown:setClickCallback("FEDUI.showCommodityMenu")
+
+  FEDUI.btnCPrice = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnCPrice",
+      width   = "30%",
+      height  = "100%",
+      message = "&lt;center&gt;CP&lt;/center&gt;",
+    },
+    FEDUI.tradingButtonBar
+  )
+  FEDUI.btnCPrice:setStyleSheet(buttonCSS)
+  FEDUI.btnCPrice:setClickCallback("FEDUI.executeCPrice")
+
+  FEDUI.btnCartelToggle = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnCartelToggle",
+      message = "&lt;center&gt;☑ Cartel&lt;/center&gt;",
+    },
+    FEDUI.tradingButtonBar
+  )
+  FEDUI.btnCartelToggle:setStyleSheet(buttonCSS)
+  FEDUI.btnCartelToggle:setClickCallback("FEDUI.toggleCartel")
+
+  -- Initialize trading state
+  FEDUI.trading = {
+    selectedCommodity = nil,
+    useCartel         = true
+  }
+
+  ------------- Score Button -------------------------------
+  FEDUI.btnScore = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnScore",
+      x       = "100%+173px",
+      y       = 100,
+      width   = 25,
+      height  = 20,
+      message = "&lt;center&gt;SC&lt;/center&gt;"
+    },
+    FEDUI.mapCommandsContainer
+  )
+  
+  FEDUI.btnScore:setStyleSheet(buttonCSS)
+  FEDUI.btnScore:setClickCallback("FEDUI.score")
+
+  ------------- Status Button -------------------------------
+  FEDUI.btnStatus = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnStatus",
+      x       = "100%+200px",
+      y       = 100,
+      width   = 25,
+      height  = 20,
+      message = "&lt;center&gt;ST&lt;/center&gt;"
+    },
+    FEDUI.mapCommandsContainer
+  )
+  
+  FEDUI.btnStatus:setStyleSheet(buttonCSS)
+  FEDUI.btnStatus:setClickCallback("FEDUI.status")
+
+  -------------- Board Button --------------------------------
+  FEDUI.btnBoard = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnBoard",
+      x       = "0%-7px",
+      y       = 5,
+      width   = 25,
+      height  = 20,
+      message = "&lt;center&gt;B&lt;/center&gt;"
+    },
+    FEDUI.mapCommandsContainer
+  )
+  
+  FEDUI.btnBoard:setStyleSheet(buttonCSS)
+  FEDUI.btnBoard:setClickCallback("FEDUI.board")
+  
+  -- Store button and action references for easy access
+  FEDUI.movement.directions = {
+    n      = { button = FEDUI.btnN,     action = "FEDUI.moveN"    },
+    ne     = { button = FEDUI.btnNE,    action = "FEDUI.moveNE"   },
+    e      = { button = FEDUI.btnE,     action = "FEDUI.moveE"    },
+    se     = { button = FEDUI.btnSE,    action = "FEDUI.moveSE"   },
+    s      = { button = FEDUI.btnS,     action = "FEDUI.moveS"    },
+    sw     = { button = FEDUI.btnSW,    action = "FEDUI.moveSW"   },
+    w      = { button = FEDUI.btnW,     action = "FEDUI.moveW"    },
+    nw     = { button = FEDUI.btnNW,    action = "FEDUI.moveNW"   },
+    up     = { button = FEDUI.btnUp,    action = "FEDUI.moveUp"   },
+    down   = { button = FEDUI.btnDown,  action = "FEDUI.moveDown" },
+    ["in"] = { button = FEDUI.btnIn,    action = "FEDUI.moveIn"   },
+    out    = { button = FEDUI.btnOut,   action = "FEDUI.moveOut"  },
+    board  = { button = FEDUI.btnBoard, action = "FEDUI.board"    },
+  }
+  
+  FEDUI.movement.buttonCSS   = buttonCSS
+  FEDUI.movement.disabledCSS = disabledButtonCSS
+  
+end
+
+function FEDUI.showCommodityMenu()
+  -- Create a scrollable menu (Mudlet's context menu)
+  local menu = {}
+  
+  for commodity,price in ipairs(FEDUI.CommoditiesBasePrice) do
+    table.insert(menu, commodity)
+  end
+  
+  -- Show menu at button position
+  local selected = showMenu("Select Commodity", menu)
+  
+  if selected then
+    FEDUI.commerce.selectedCommodity = FEDUI.commerce.commodities[selected]
+    FEDUI.btnCommodity:echo("&lt;center&gt;" .. FEDUI.commerce.selectedCommodity .. " ▼&lt;/center&gt;")
+  end
+end
+
+-- Toggle Movement Buttons Visibility
+function FEDUI.toggleMovementButtons()
+  if FEDUI.movement.visible then
+    FEDUI.cardinalBox:hide()
+    FEDUI.verticalBox:hide()
+    FEDUI.inOutBox:hide()
+    FEDUI.btnShowHide:echo("&lt;center&gt;Show Buttons&lt;/center&gt;")
+    FEDUI.btnBoard:hide()
+    FEDUI.btnFuel:hide()
+    FEDUI.btnWork:hide()
+    FEDUI.btnCollect:hide()
+    FEDUI.btnDeliver:hide()
+    FEDUI.btnScore:hide()
+    FEDUI.btnStatus:hide()
+    FEDUI.movement.visible = false
+  else
+    FEDUI.cardinalBox:show()
+    FEDUI.verticalBox:show()
+    FEDUI.inOutBox:show()
+    FEDUI.btnShowHide:echo("&lt;center&gt;Hide Buttons&lt;/center&gt;")
+    FEDUI.btnBoard:show()
+    FEDUI.btnFuel:show()
+    FEDUI.btnWork:show()
+    FEDUI.btnCollect:show()
+    FEDUI.btnDeliver:show()
+    FEDUI.btnScore:show()
+    FEDUI.btnStatus:show()
+    FEDUI.movement.visible = true
+  end
+end
+
+function table.contains(table, element)
+  for _, value in pairs(table) do
+    if value == element then
+      return true
+    end
+  end
+  return false
+end
+
+-- Register GMCP handler
+function FEDUI.registerGMCPHandlers()
+  if FEDUI.gmcpRoomHandler then killAnonymousEventHandler(FEDUI.gmcpRoomHandler) end
+  
+  FEDUI.gmcpRoomHandler = registerAnonymousEventHandler("gmcp.room.info", "FEDUI.onGMCPRoomInfo")
+end
+
+-- Run on every update to GMCP room info
+function FEDUI.onGMCPRoomInfo()
+  local exits = {}
+
+  -- get all the gmcp room exits and add them to valid exits
+  for exit, _ in pairs(gmcp.room.info.exits) do
+    table.insert(exits, exit:lower())
+  end
+
+  -- Detect shuttlepad or orbit and add board to valid exits
+  if table.contains(gmcp.room.info.flags, "shuttlepad") or table.contains(gmcp.room.info.flags, "orbit") or gmcp.room.info.orbit then table.insert(exits, "board") end
+
+  for dir, dirData in pairs(FEDUI.movement.directions) do
+    if table.contains(exits, dir) then
+      dirData.button:setStyleSheet(FEDUI.movement.buttonCSS)
+      dirData.button:setClickCallback(dirData.action)
+    else
+      dirData.button:setStyleSheet(FEDUI.movement.disabledCSS)
+      dirData.button:setClickCallback(function() end)
+    end
+  end
+  
+  -- grey out buy fuel if in space
+  if table.contains(gmcp.room.info.flags, "space") then
+    FEDUI.btnFuel:setStyleSheet(FEDUI.movement.disabledCSS)
+    FEDUI.btnFuel:setClickCallback(function() end)
+  else
+    FEDUI.btnFuel:setStyleSheet(FEDUI.movement.buttonCSS)
+    FEDUI.btnFuel:setClickCallback("FEDUI.buyFuel")
+  end
+end
+
+------------- Commands ---------------------------------------
+function FEDUI.moveN()
+  send("n")
+end
+
+function FEDUI.moveNE()
+  send("ne")
+end
+
+function FEDUI.moveE()
+  send("e")
+end
+
+function FEDUI.moveSE()
+  send("se")
+end
+
+function FEDUI.moveS()
+  send("s")
+end
+
+function FEDUI.moveSW()
+  send("sw")
+end
+
+function FEDUI.moveW()
+  send("w")
+end
+
+function FEDUI.moveNW()
+  send("nw")
+end
+
+function FEDUI.moveUp()
+  send("up")
+end
+
+function FEDUI.moveDown()
+  send("down")
+end
+
+function FEDUI.moveIn()
+  send("in")
+end
+
+function FEDUI.moveOut()
+  send("out")
+end
+
+function FEDUI.look()
+  send("look")
+end
+
+function FEDUI.board()
+  send("board")
+end
+
+function FEDUI.buyFuel()
+  send("buy fuel")
+end
+
+function FEDUI.work()
+  send("work")
+end
+
+function FEDUI.collect()
+  send("collect")
+end
+
+function FEDUI.deliver()
+  send("deliver")
+end
+
+function FEDUI.score()
+  send("score")
+end
+
+function FEDUI.status()
+  send("status")
+end
+
+function FEDUI.showCommodityMenu()
+  -- Create scrollable popup
+  if FEDUI.commodityPopup then
+    FEDUI.commodityPopup:hide()
+    FEDUI.commodityPopup = nil
+    return
+  end
+  
+  FEDUI.commodityPopup = Geyser.Container:new(
+    {
+      name   = "FEDUI.commodityPopup",
+      x      = "10%",
+      y      = 30,
+      width  = 200,
+      height = 300,
+    },
+    FEDUI.tradingContainer
+  ) 
+  
+  --FEDUI.commodityPopup:setStyleSheet([[
+  --  background-color: rgba(30, 30, 35, 250);
+  --  border: 2px solid rgba(120, 120, 130, 255);
+  --]])
+  
+  local scrollBox = Geyser.ScrollBox:new(
+    {
+      name   = "commodityScroll",
+      x      = 0,
+      y      = 0,
+      width  = "100%",
+      height = "100%",
+    },
+    FEDUI.commodityPopup
+  )
+  
+  -- Use MiniConsole for scrollable list instead
+  local commodityConsole = Geyser.MiniConsole:new({
+    name = "commodityConsole",
+    x = 0, y = 0,
+    width = "100%",
+    height = "100%",
+    fontSize = 10,
+  }, FEDUI.commodityPopup)
+  
+  -- Convert to sorted array
+  local commodityList = {}
+  for commodity, price in pairs(FEDUI.CommoditiesBasePrice) do
+    table.insert(commodityList, {name = commodity, price = price})
+  end
+  table.sort(commodityList, function(a, b) return a.name &lt; b.name end)
+  
+  -- Display as clickable links
+  for i, item in ipairs(commodityList) do
+    cechoLink("commodityConsole", 
+      "&lt;white&gt;" .. item.name .. " (" .. item.price .. ")\n",
+      function()
+        FEDUI.trading.selectedCommodity = item.name
+        FEDUI.cPriceDropDown:echo("&lt;center&gt;" .. item.name .. " ▼&lt;/center&gt;")
+        FEDUI.commodityPopup:hide()
+        FEDUI.commodityPopup = nil
+      end,
+      "Select " .. item.name,
+      true
+    )
+  end
+  
+  FEDUI.commodityPopup:show()
+  FEDUI.commodityPopup:raise()
+end
+
+function FEDUI.toggleCartel()
+  FEDUI.trading.useCartel = not FEDUI.trading.useCartel
+  local checkbox = FEDUI.trading.useCartel and "☑" or "☐"
+  FEDUI.btnCartelToggle:echo("&lt;center&gt;" .. checkbox .. " Cartel&lt;/center&gt;")
+end
+
+function FEDUI.executeCPrice()
+  if not FEDUI.trading.selectedCommodity then
+    cecho("\n&lt;red&gt;Please select a commodity first!\n")
+    return
+  end
+  
+  local cmd = "c price " .. FEDUI.trading.selectedCommodity:lower()
+  if FEDUI.trading.useCartel then
+    FEDUI.commerce                  = FEDUI.commerce or {}
+    FEDUI.commerce.currentCommodity = FEDUI.trading.selectedCommodity:lower()
+    FEDUI.commerce.data             = {}
+    FEDUI.commerce.lastLineWasPrice = false
+    FEDUI.tradingWindow:clear()
+    cmd = cmd .. " cartel"
+  end
+  send(cmd)
+end</script>
+					<eventHandlerList />
+				</Script>
+				<Script isActive="yes" isFolder="no">
+					<name>printStats</name>
+					<packageName></packageName>
+					<script>--takes important character and ship stats, prints them to the labels at the top of the screen
+
+if magicCashNumbers == nil then
+  magicCashNumbers = {
+    ["Commander"] = 250000,
+    ["Captain"] = 400000,
+    ["Adventurer"] = 600000,
+    ["Adventuress"] = 600000,
+    ["Merchant"] = 7500000,
+    ["Trader"] = 12500000,
+    ["Industrialist"] = 17500000,
+    ["Manufacturer"] = 22500000,
+    ["Financier"] = 27500000,
+  }--magic numbers taken from the documentation (https://federation2.com/guide/#sec-220.10)
+  --magic numbers confirmed by in-game 'help tax' document
+  --everyone over Financier has no cap (but may have a cap of 1,000,000,000?)
+  --planets and companies do have a cap of 1,000,000,000 but we don't track this so it's fine
+  --businesses have a cap of 100,000,000 but we also don't track this so it's still fine
+end
+
+--called by 'cash = convert_value(vitals.cash)'
+--called by 'groatsMax = convert_value(magicCashNumbers[rank])'
+local function convert_value(amount) --format very long numbers
+  local formatted = amount
+  if tonumber(formatted) == nil then return nil end
+  if tonumber(formatted) &lt;= 1000000 then --we are below or just equal to a meg
+    while true do
+      formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", '%1,%2')
+      if (k==0) then
+        break
+      end
+    end
+  else --we are above a meg
+    --divide by 100,000 so the decimal is shifted
+    --floor the result to throw away everything after the decimal
+    --divide by 10 to put the decimal in the right spot
+    formatted = math.floor(tonumber(formatted)/100000) / 10 .. " m"
+  end
+  return formatted
+end
+
+local function colorPercent(numCur, numMax) --colorize based on a percentage
+  --0 is ansiRed, 5 is ansiYellow, 9 is ansiGreen, 10 is default white
+  --unfortunately mudlet's color table doesn't have a good gradiant 
+  --so hexcodes from a random online gradiant tool it is
+  local colorGrad = {[0] = "#800000", [1] = "#801a00", [2] = "#803400", [3] = "#804e00", [4] = "#806800", 
+    [5] = "#808000", [6] = "#668000", [7] = "#4c8000", [8] = "#328000", [9] = "#008000", [10] = "#FFFFFF"
+  }
+  --divide the current value by the max value to get a percentage
+  --then multiply it by ten to shift the decimal
+  --then floor it to chop off everything after the decimal
+  --should result in a number between 0 and 10
+  percent = math.floor((tonumber(numCur) / tonumber(numMax)) * 10)
+  color = colorGrad[percent]
+  return color
+end
+
+--Tracking: Rank, Cargo Space, Fuel, Stamina, Money, Slithies
+
+function printStats()
+  local vitals = (gmcp.char and gmcp.char.vitals) or {}
+  local ship = (gmcp.char and gmcp.char.ship) or {}
+
+  local rank    = vitals.rank or "-"
+  local holdCur = (ship.hold and ship.hold.cur) or "-"
+  local holdMax = (ship.hold and ship.hold.max) or "-"
+  local fuelCur = (ship.fuel and ship.fuel.cur) or "-"
+  local fuelMax = (ship.fuel and ship.fuel.max) or "-"
+  local stamCur = (vitals.stamina and vitals.stamina.cur) or "-"
+  local stamMax = (vitals.stamina and vitals.stamina.max) or "-"
+  local cash    = convert_value(vitals.cash) or "-"
+  local slith   = vitals.slithies or "-"
+  local groatsMax = convert_value(magicCashNumbers[rank]) or "-"
+
+  FEDUI.Label1:echo("Rank: ".. [[&lt;b&gt;]] .. rank .. [[&lt;/b&gt;]])
+  if tonumber(holdCur) then FEDUI.Label2:echo("Hold: " .. [[&lt;b&gt;&lt;font color=]]..colorPercent(holdCur,holdMax)..[[&gt;]] .. holdCur .. [[&lt;/font&gt;&lt;/b&gt;]] .. "/" .. holdMax) end
+  if tonumber(fuelCur) then FEDUI.Label3:echo("Fuel: " .. [[&lt;b&gt;&lt;font color=]]..colorPercent(fuelCur,fuelMax)..[[&gt;]] .. fuelCur .. [[&lt;/font&gt;&lt;/b&gt;]] .. "/" .. fuelMax) end
+  if tonumber(stamCur) then FEDUI.Label4:echo("Stamina: " .. [[&lt;b&gt;&lt;font color=]]..colorPercent(stamCur,stamMax)..[[&gt;]] .. stamCur .. [[&lt;/font&gt;&lt;/b&gt;]].. "/" .. stamMax) end
+  if groatsMax == "-" then
+    FEDUI.Label5:echo("Groats: " .. [[&lt;b&gt;]] .. cash .. [[&lt;/b&gt;]])
+  else
+    FEDUI.Label5:echo("Groats: " .. [[&lt;b&gt;]] .. cash .. [[&lt;/b&gt;]] .. "/" .. groatsMax)
+  end
+  FEDUI.Label6:echo("Slithies: " .. [[&lt;b&gt;]] .. slith .. [[&lt;/b&gt;]])
+end</script>
+					<eventHandlerList>
+						<string>gmcp.char</string>
+					</eventHandlerList>
+				</Script>
+				<Script isActive="yes" isFolder="no">
+					<name>echoCargo</name>
+					<packageName></packageName>
+					<script>--echoes cargo information to the cargo console
+function echoCargo()
+  local cargo = gmcp.char.ship.cargo --this is a table, and possibly a table of tables
+  if cargo then
+    clearWindow("FEDUI.cargoWindow") --reset the window, no need to have old cargo sticking around
+    FEDUI.cargoWindow:cecho("&lt;b&gt;Current Cargo:&lt;/b&gt;\n")
+    for key, value in pairs(cargo) do
+      FEDUI.cargoWindow:cecho("&lt;b&gt;"..value.commodity) --name of the commodity
+      FEDUI.cargoWindow:cecho("&lt;/b&gt; at ")
+      FEDUI.cargoWindow:echo(value.cost) --how much you paid for it
+      FEDUI.cargoWindow:echo("/")
+      FEDUI.cargoWindow:echo(value.base) --default price of commodity
+      if value.base-value.cost &gt;=0 then
+        FEDUI.cargoWindow:cecho(" (&lt;green&gt;+"..value.base-value.cost)
+      else
+        FEDUI.cargoWindow:cecho(" (&lt;red&gt;-"..value.base-value.cost)
+      end
+      FEDUI.cargoWindow:cecho("&lt;reset&gt;) from ")
+      FEDUI.cargoWindow:cecho("&lt;b&gt;"..value.origin) --what planet you bought it from
+      FEDUI.cargoWindow:cecho("&lt;/b&gt;\n")
+    end
+    FEDUI.cargoWindow:echo("\n")
+  end
+end
+
+--cargo table contents:
+  --base = [number] --this the commodity's default price
+  --commodity = [string] --this is the name of the commodity
+  --cost = [number] --this is how much you paid for the commodity
+  --origin = [string] --this is where the commodity came from</script>
+					<eventHandlerList>
+						<string>gmcp.char.ship</string>
+					</eventHandlerList>
+				</Script>
+				<ScriptGroup isActive="yes" isFolder="yes">
+					<name>echoChatIn</name>
+					<packageName></packageName>
+					<script>--takes incoming chat and echoes it to the dedicated chat console window
+--does not currently handle XT chat</script>
+					<eventHandlerList />
+					<Script isActive="yes" isFolder="no">
+						<name>echoCom</name>
+						<packageName></packageName>
+						<script>function echoCom()
+  FEDUI.chatWindow:cecho('&lt;ansiCyan&gt;' .. gmcp.comm.com.from .. ' comms: "' .. gmcp.comm.com.message .. '"\n')
+end</script>
+						<eventHandlerList>
+							<string>gmcp.comm.com</string>
+						</eventHandlerList>
+					</Script>
+					<Script isActive="yes" isFolder="no">
+						<name>echoTell</name>
+						<packageName></packageName>
+						<script>function echoTell()
+  FEDUI.chatWindow:cecho('&lt;ansiRed&gt;' .. gmcp.comm.tell.from .. ' tight beams you: "' .. gmcp.comm.tell.message .. '"\n')
+end</script>
+						<eventHandlerList>
+							<string>gmcp.comm.tell</string>
+						</eventHandlerList>
+					</Script>
+					<Script isActive="yes" isFolder="no">
+						<name>echoSay</name>
+						<packageName></packageName>
+						<script>function echoSay()
+  FEDUI.chatWindow:cecho('&lt;ansiCyan&gt;' .. gmcp.comm.say.from .. ' says: "' .. gmcp.comm.say.message .. '"\n')
+end</script>
+						<eventHandlerList>
+							<string>gmcp.comm.say</string>
+						</eventHandlerList>
+					</Script>
+				</ScriptGroup>
+				<ScriptGroup isActive="yes" isFolder="yes">
+					<name>fedmap</name>
+					<packageName></packageName>
+					<script>fedmap = fedmap or {}</script>
+					<eventHandlerList />
+					<Script isActive="yes" isFolder="no">
+						<name>Fed2Mapper</name>
+						<packageName></packageName>
+						<script>-----[ tell mudlet that we're a legit mapper ]-----
+mudlet = mudlet or {}
+mudlet.mapper_script = true
+
+--===begin useful mapping functions===--
+
+-----[ custom env colors ]-----
+setCustomEnvColor(33, 255, 192, 203, 255) --mudlet's 'pink', used for auto-generated unexplored rooms
+
+--mapper default color reference--
+--257 - dark red    --265 - red
+--258 - dark green	--266 - green
+--259 - dark yellow	--267 - yellow
+--260 - dark blue	  --268 - blue
+--261 - dark pink	  --269 - pink
+--262 - dark cyan	  --270 - cyan
+--263 - light grey	--271 - white
+--264 - black		    --272 - dark grey
+
+
+-----[ set room environment ]-----
+--set the room color and symbol based on the room's flags
+--colors are the mapper defaults, found from getCustomEnvColorTable()
+--if the 'link', 'orbit', 'shuttlepad', or 'exchange' flags are found, room is maroon
+--having just the 'space' flag or no flags at all results in the room being grey
+--rooms with the 'shuttlepad' flag get a star symbol so they're easy to find
+--rooms with the 'exchange' flag get 'EX' as a symbol so they're easy to find
+--not setting symbols on 'link' or 'orbit' flags because there's too much variety here to hardcode something
+	--end users should be setting their own symbols via alias anyway
+function fedmap.roomColor(roomID)
+  local table = gmcp.room.info.flags
+  if next(table) == nil then --the room's table of flags is empty, this is an ordinary room on a planet
+  	setRoomEnv(roomID, 272)
+    setRoomChar(roomID, "")
+  else
+  	local flags = {}
+  	for key,value in ipairs(table) do        --take the values from the room's table of flags
+  		setRoomUserData(roomID, value, "true")	--put them into the room's user data
+		end
+		if getRoomUserData(roomID, "link") == "true" then --this room lets people jump to different systems
+			--echo("link flag found")
+			setRoomEnv(roomID, 260)
+      setRoomChar(roomID, "")
+		elseif getRoomUserData(roomID, "orbit") == "true" or gmcp.room.info.orbit then --this room lets people board their shuttle to land on the planet
+			--echo("orbit flag found")
+			setRoomEnv(roomID, 257)
+      setRoomChar(roomID, "")
+		elseif getRoomUserData(roomID, "space") == "true" then --this is an ordinary space room with no orbits or system links
+			--echo("space flag found")
+			setRoomEnv(roomID, 272)
+      setRoomChar(roomID, "")
+		elseif getRoomUserData(roomID, "shuttlepad") == "true" then --this room lets people board their shuttle to reach their spaceship
+			--echo("shuttlepad flag found")
+			setRoomEnv(roomID, 257)
+			setRoomChar(roomID, "★")
+		elseif getRoomUserData(roomID, "exchange") == "true" then --this room lets people use the exchange features
+			--echo("exchange flag found")
+			setRoomEnv(roomID, 257)
+			setRoomChar(roomID, "EX")
+		else 							--we have no idea what this room is, panic
+			--echo("other flag found")
+			setRoomEnv(roomID, 259)
+      setRoomChar(roomID, "")
+  	end
+  end
+end
+
+-----[ create ghost room ]-----
+--unexplored rooms are generated for each valid exit, so we have something to hook the exit to
+--they're colored a pale pink and identified with a ? so we know they haven't been entered yet
+local function makeGhostRoom(destinationHash, areaID, number) --called by generateExits
+	local ID = createRoomID()          --get the next free room number
+	setRoomIDbyHash(ID, destinationHash) --assign that room number to the destination room's hash 
+	addRoom(ID, areaID)            --create the room using our generated room number
+	local coordX, coordY = fedmap.makeCoords(number)
+	setRoomCoordinates(ID, coordX, coordY, 0)
+	setRoomEnv(ID, 33) --custom env, not one of the mapper defaults
+	setRoomChar(ID, "?")
+end
+
+-----[ create exits ]-----
+--convert each fed room number into a a room hash, check to see if there's a mapper room number associated
+--if there is no room already existing with that hash, create one via makeGhostRoom
+--once we are assured the room exists, hook an exit to it
+function fedmap.generateExits(areaID, roomID) --called as part of fedmap.makeRoom
+	local exits = gmcp.room.info.exits
+	for dir, number in pairs(exits) do
+		local destinationHash = gmcp.room.info.system .. "." .. gmcp.room.info.area .. "." .. number
+		if getRoomIDbyHash(destinationHash) == -1 then --no room is associated with this hash
+      makeGhostRoom(destinationHash, areaID, number) --let's fix that
+    end
+		setExit(roomID, getRoomIDbyHash(destinationHash), dir)
+	end
+end
+
+--===begin core mapping functions===--
+
+-----[ get area ID ]-----
+--this function returns the areaID, adding the area to mudlet's mapper table if necessary
+local function findAreaID(areaname)
+	--areaname is expected to be gmcp.room.info.area
+	local list = getAreaTable() --load mudlet's mapper table
+	local areaID = -1
+	if list[areaname] ~= nil then --not nil, so there is already an area with that name in the mapper table
+		areaID = list[areaname] --get the value indexed to the area's name
+	else --nil result, so the area name is NOT the mapper table and needs to be added
+		areaID = addAreaName(areaname) --add the area to the mapper table, returning the new area ID
+    setMapZoom(6, areaID) --sets the zoom of our new area to something reasonable
+	end			
+	return areaID
+end
+
+
+-----[ generate room coordinates ]-----
+--rooms are built on a grid that is 64 sqares wide and 63 squares tall
+--we only need to care about how wide the grid is to get the room coordinates
+--calculate their location using the power of MATH
+function fedmap.makeCoords(roomnum)
+	--roomnum is expected to be gmcp.room.info.num
+	local coordX = roomnum % 64 --modulus to get the column
+  --local coordY = roomnum // 64 --floor division to get the row
+  local coordY = math.floor(roomnum / 64) --evidently mudlet has no native floor division
+	--there is no Z coord returned because the underlying grid is flat
+	return coordX, -coordY
+end
+--Y is returned inverted because the game's map puts 0,0 at the top left
+--and mudlet's map puts 0,0 in the center
+--inverting Y syncs everything back up
+
+
+-----[ create room ]-----
+--generates a room if no room exists, and either way centers the map on the current location
+--this is the function called when we receive gmcp.room data from the game
+function fedmap.makeRoom()
+	local roomHash = gmcp.room.info.system .. "." .. gmcp.room.info.area .. "." .. gmcp.room.info.num
+	local roomID = getRoomIDbyHash(roomHash)
+	local areaID = findAreaID(gmcp.room.info.area)
+	local coordX, coordY = fedmap.makeCoords(gmcp.room.info.num)
+	
+	if roomID == -1 then -- -1 is returned if no room ID matches the hash
+		roomID = createRoomID() --get the next free room number
+		setRoomIDbyHash(roomID, roomHash) --assign that room number to this room's hash
+		addRoom(roomID, areaID) --create the room using our generated room number
+		setRoomCoordinates(roomID, coordX, coordY, 0) --place the room on the map
+		setRoomName(roomID, gmcp.room.info.name)
+    fedmap.roomColor(roomID)
+    fedmap.generateExits(areaID, roomID)
+  elseif getRoomName(roomID) == "" then --room exists but hasn't had its info set
+		--this existing room already has an ID, hash, and coordinates
+		setRoomName(roomID, gmcp.room.info.name)
+		fedmap.roomColor(roomID)
+		fedmap.generateExits(areaID, roomID)
+	end
+  centerview(roomID)
+end</script>
+						<eventHandlerList />
+					</Script>
+					<Script isActive="yes" isFolder="no">
+						<name>callMapper</name>
+						<packageName></packageName>
+						<script>function callMapper()
+  fedmap.makeRoom()
+end</script>
+						<eventHandlerList>
+							<string>gmcp.room</string>
+						</eventHandlerList>
+					</Script>
+				</ScriptGroup>
+				<Script isActive="yes" isFolder="no">
+					<name>outputCommodities</name>
+					<packageName></packageName>
+					<script>--puts the CommodyTable in the Commodities window, sorted by price
+function FEDUI.outputCommodities()
+  clearWindow("FEDUI.commoditiesWindow")
+
+  local entities = {}
+  for key, value in pairs(FEDUI.CommoditiesBasePrice) do
+    table.insert(entities, {key = key, value = value})
+  end
+  table.sort(entities, function (a,b) return a.value &lt; b.value end)
+  
+  for key, entity in ipairs(entities) do
+    FEDUI.commoditiesWindow:echo(entity.key.." ("..entity.value..")\n")
+  end
+end</script>
+					<eventHandlerList />
+				</Script>
+				<Script isActive="yes" isFolder="no">
+					<name>MagicNumbers</name>
+					<packageName></packageName>
+					<script>--numbers taken from documentation (https://federation2.com/guide/#sec-100.60)
+--used with the ExchangeTriggers
+
+FEDUI.CommoditiesBasePrice = {
+  Cereals = 270,
+  Fruit = 420,
+  Furs = 650,
+  Hides = 400,
+  Livestock = 210,
+  Meats = 410,
+  Soya = 230,
+  Spices = 650,
+  Textiles = 300,
+  Woods = 700,
+  Alloys = 180,
+  Clays = 520,
+  Crystals = 650,
+  Gold = 600,
+  Monopoles = 720,
+  Nickel = 370,
+  Petrochemicals = 400,
+  Radioactives = 540,
+  Semiconductors = 350,
+  Xmetals = 480,
+  Explosives = 470,
+  Generators = 670,
+  LanzariK = 700,
+  LubOils = 560,
+  Mechparts = 420,
+  Munitions = 250,
+  Nitros = 230,
+  Pharmaceuticals = 630,
+  Polymers = 200,
+  Propellants = 260,
+  RNA = 380,
+  AntiMatter = 480,
+  Controllers = 710,
+  Droids = 700,
+  Electros = 250,
+  GAsChips = 450,
+  Lasers = 470,
+  NanoFabrics = 850,
+  Nanos = 550,
+  Powerpacks = 680,
+  Synths = 560,
+  Tools = 350,
+  TQuarks = 835,
+  Vidicasters = 380,
+  Weapons = 420,
+  BioChips = 650,
+  BioComponents = 760,
+  Clinics = 450,
+  Laboratories = 470,
+  MicroScalpels = 320,
+  Probes = 510,
+  Proteins = 260,
+  Sensors = 470,
+  ToxicMunchers = 470,
+  Tracers = 600,
+  Artifacts = 730,
+  Firewalls = 690,
+  Games = 210,
+  Holos = 260,
+  Hypnotapes = 430,
+  Katydidics = 610,
+  Libraries = 680,
+  Musiks = 470,
+  Sensamps = 520,
+  Simulations = 310,
+  Studios = 390,
+  Univators = 570,
+ }
+ 
+--certainly there's a better way to do it, but distances manually counted using the map
+--(https://federation2.com/guide/#sec-20.10)
+--used with CommanderWork triggers
+FEDUI.SolDistances = {
+  BrassCastilo = 5,
+  BrassDoris = 2,
+  BrassEarth = 8,
+  BrassLattice = 4,
+  BrassMagellan = 7,
+  BrassMars = 6,
+  BrassMercury = 8,
+  BrassParadise = 8,
+  BrassPearl = 10,
+  BrassPhobos = 7,
+  BrassRhea = 5,
+  BrassSelena = 9,
+  BrassSilk = 4,
+  BrassSumatra = 4,
+  BrassTitan = 5,
+  BrassVenus = 7,
+  CastilloDoris = 4,
+  CastilloEarth = 3,
+  CastilloLattice = 6,
+  CastilloMagellan = 4,
+  CastilloMars = 2,
+  CastilloMercury = 6,
+  CastilloParadise = 6,
+  CastilloPearl = 8,
+  CastilloPhobos = 2,
+  CastilloRhea = 4,
+  CastilloSelena = 4,
+  CastilloSilk = 5,
+  CastilloSumatra = 2,
+  CastilloTitan = 2,
+  CastilloVenus = 5,
+  DorisEarth = 7,
+  DorisLattice = 3,
+  DorisMagellan = 6,
+  DorisMars = 5,
+  DorisMercury = 7,
+  DorisParadise = 7,
+  DorisPearl = 9,
+  DorisPhobos = 6,
+  DorisRhea = 4,
+  DorisSelena = 8,
+  DorisSilk = 3,
+  DorisSumatra = 3,
+  DorisTitan = 4,
+  DorisVenus = 6,
+  EarthLattice = 9,
+  EarthMagellan = 1,
+  EarthMars = 2,
+  EarthMercury = 3,
+  EarthParadise = 4,
+  EarthPearl = 5,
+  EarthPhobos = 2,
+  EarthRhea = 7,
+  EarthSelena = 1,
+  EarthSilk = 8,
+  EarthSumatra = 4,
+  EarthTitan = 5,
+  EarthVenus = 3,
+  LatticeMagellan = 8,
+  LatticeMars = 7,
+  LatticeMercury = 9,
+  LatticeParadise = 9,
+  LatticePearl = 11,
+  LatticePhobos = 8,
+  LatticeRhea = 6,
+  LatticeSelena = 10,
+  LatticeSilk = 5,
+  LatticeSumatra = 5,
+  LatticeTitan = 6,
+  LatticeVenus = 8,
+  MagellanMars = 2,
+  MagellanMercury = 2,
+  MagellanParadise = 3,
+  MagellanPearl = 4,
+  MagellanPhobos = 3,
+  MagellanRhea = 6,
+  MagellanSelena = 2,
+  MagellanSilk = 7,
+  MagellanSumatra = 3,
+  MagellanTitan = 5,
+  MagellanVenus = 2,
+  MarsMercury = 4,
+  MarsParadise = 4,
+  MarsPearl = 6,
+  MarsPhobos = 1,
+  MarsRhea = 5,
+  MarsSelena = 3,
+  MarsSilk = 6,
+  MarsSumatra = 2,
+  MarsTitan = 3,
+  MarsVenus = 3,
+  MercuryParadise = 4,
+  MercuryPearl = 2,
+  MercuryPhobos = 5,
+  MercuryRhea = 7,
+  MercurySelena = 2,
+  MercurySilk = 8,
+  MercurySumatra = 4,
+  MercuryTitan = 7,
+  MercuryVenus = 3,
+  ParadisePearl = 5,
+  ParadisePhobos = 5,
+  ParadiseRhea = 7,
+  ParadiseSelena = 5,
+  ParadiseSilk = 8,
+  ParadiseSumatra = 4,
+  ParadiseTitan = 7,
+  ParadiseVenus = 1,
+  PearlPhobos = 7,
+  PearlRhea = 9,
+  PearlSelena = 4,
+  PearlSilk = 10,
+  PearlSumatra = 6,
+  PearlTitan = 9,
+  PearlVenus = 4,
+  PhobosRhea = 6,
+  PhobosSelena = 3,
+  PhobosSilk = 7,
+  PhobosSumatra = 3,
+  PhobosTitan = 4,
+  PhobosVenus = 4,
+  RheaSelena = 8,
+  RheaSilk = 5,
+  RheaSumatra = 3,
+  RheaTitan = 2,
+  RheaVenus = 6,
+  SelenaSilk = 9,
+  SelenaSumatra = 5,
+  SelenaTitan = 6,
+  SelenaVenus = 4,
+  SilkSumatra = 4,
+  SilkTitan = 5,
+  SilkVenus = 7,
+  SumatraTitan = 3,
+  SumatraVenus = 3,
+  TitanVenus = 6,
+ }</script>
+					<eventHandlerList />
+				</Script>
+			</ScriptGroup>
+		</ScriptGroup>
+	</ScriptPackage>
+</MudletPackage>
