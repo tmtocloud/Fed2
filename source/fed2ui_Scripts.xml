@@ -2289,6 +2289,14 @@ function FEDUI.buildMovementButtons()
     useCartel         = true
   }
 
+  -- Best Profit button
+  FEDUI.btnBestProfit = Geyser.Label:new({
+    name = "FEDUI.btnBestProfit",
+    message = "&lt;center&gt;Find Best&lt;/center&gt;",
+  }, FEDUI.tradingButtonBar)
+  FEDUI.btnBestProfit:setStyleSheet(buttonCSS)
+  FEDUI.btnBestProfit:setClickCallback("FEDUI.findBestProfit")
+
   ------------- Score Button -------------------------------
   FEDUI.btnScore = Geyser.Label:new(
     {
@@ -3210,6 +3218,153 @@ FEDUI.SolDistances = {
   SumatraVenus = 3,
   TitanVenus = 6,
  }</script>
+					<eventHandlerList />
+				</Script>
+				<Script isActive="yes" isFolder="no">
+					<name>cPriceBestProfit</name>
+					<packageName></packageName>
+					<script>-- Initialize profit search state
+FEDUI.profitSearch = {
+  active = false,
+  commoditiesToSearch = {},
+  currentIndex = 1,
+  results = {},
+  bestCommodity = nil,
+  bestProfit = -math.huge
+}
+
+function FEDUI.findBestProfit()
+  -- Clear previous results
+  FEDUI.profitSearch = {
+    active = true,
+    commoditiesToSearch = {},
+    currentIndex = 1,
+    results = {},
+    bestCommodity = nil,
+    bestProfit = -math.huge
+  }
+  
+  -- Build list of all commodities
+  for commodity, _ in pairs(FEDUI.CommoditiesBasePrice) do
+    table.insert(FEDUI.profitSearch.commoditiesToSearch, commodity)
+  end
+  
+  FEDUI.tradingWindow:clear()
+  FEDUI.tradingWindow:cecho("&lt;yellow&gt;Searching " .. #FEDUI.profitSearch.commoditiesToSearch .. " commodities for best profit...\n\n")
+  
+  -- Start searching
+  FEDUI.searchNextCommodity()
+end
+
+function FEDUI.searchNextCommodity()
+  if not FEDUI.profitSearch.active then return end
+  
+  local commodity = FEDUI.profitSearch.commoditiesToSearch[FEDUI.profitSearch.currentIndex]
+  
+  if not commodity then
+    -- Done searching, display results
+    FEDUI.displayBestProfit()
+    return
+  end
+  
+  -- Clear commerce data for this search
+  FEDUI.commerce.data = {}
+  FEDUI.commerce.currentCommodity = commodity
+  FEDUI.commerce.lastLineWasPrice = false
+  
+  -- Send the search command
+  send("c price " .. commodity:lower() .. " cartel", false)
+end
+
+function FEDUI.processProfitSearchResults()
+  -- Calculate profit for current commodity
+  local bestBuy = math.huge
+  local bestSell = -1
+  
+  for _, item in ipairs(FEDUI.commerce.data) do
+    if item.action == "selling" then
+      if item.price &lt; bestBuy then bestBuy = item.price end
+    elseif item.action == "buying" then
+      if item.price &gt; bestSell then bestSell = item.price end
+    end
+  end
+  
+  local profit = (bestBuy ~= math.huge and bestSell ~= -1) and (bestSell - bestBuy) or -math.huge
+  
+  local commodity = FEDUI.commerce.currentCommodity
+  
+  -- Store result
+  table.insert(FEDUI.profitSearch.results, {
+    commodity = commodity,
+    profit = profit,
+    bestBuy = bestBuy,
+    bestSell = bestSell
+  })
+  
+  -- Update if this is the best
+  if profit &gt; FEDUI.profitSearch.bestProfit then
+    FEDUI.profitSearch.bestProfit = profit
+    FEDUI.profitSearch.bestCommodity = commodity
+  end
+  
+  -- Update display
+  FEDUI.tradingWindow:cecho(string.format(
+    "&lt;%s&gt;%-20s: %+4dig/ton&lt;reset&gt;\n",
+    profit &gt; 0 and "green" or "red",
+    commodity,
+    profit
+  ))
+  
+  -- Move to next
+  FEDUI.profitSearch.currentIndex = FEDUI.profitSearch.currentIndex + 1
+  
+  -- Small delay before next search to avoid flooding
+  tempTimer(0.5, function() FEDUI.searchNextCommodity() end)
+end
+
+function FEDUI.displayBestProfit()
+  FEDUI.profitSearch.active = false
+  
+  -- Sort results by profit
+  table.sort(FEDUI.profitSearch.results, function(a, b)
+    return a.profit &gt; b.profit
+  end)
+  
+  FEDUI.tradingWindow:cecho("\n&lt;white&gt;==========================================\n")
+  FEDUI.tradingWindow:cecho("&lt;yellow&gt;BEST PROFIT: &lt;reset&gt;")
+  
+  if FEDUI.profitSearch.bestCommodity then
+    local best = FEDUI.profitSearch.results[1]
+    FEDUI.tradingWindow:cechoLink(
+      "&lt;green&gt;&lt;b&gt;" .. best.commodity .. "&lt;/b&gt;&lt;reset&gt;",
+      function()
+        FEDUI.trading.selectedCommodity = best.commodity
+        FEDUI.cPriceDropDown:echo("&lt;center&gt;" .. best.commodity .. " ▼&lt;/center&gt;")
+        send("c price " .. best.commodity:lower() .. " cartel")
+      end,
+      "Search " .. best.commodity,
+      true
+    )
+    FEDUI.tradingWindow:cecho(string.format(
+      " | &lt;green&gt;%dig/ton profit&lt;reset&gt;\n",
+      best.profit
+    ))
+    FEDUI.tradingWindow:cecho(string.format(
+      "Buy at %dig, Sell at %dig\n",
+      best.bestBuy,
+      best.bestSell
+    ))
+    
+    -- Auto-select it
+    FEDUI.trading.selectedCommodity = best.commodity
+    FEDUI.cPriceDropDown:echo("&lt;center&gt;" .. best.commodity .. " ▼&lt;/center&gt;")
+  else
+    FEDUI.tradingWindow:cecho("&lt;red&gt;No profitable commodities found&lt;reset&gt;\n")
+  end
+  
+  FEDUI.tradingWindow:cecho("&lt;white&gt;==========================================\n\n")
+  FEDUI.tradingWindow:cecho("&lt;dim_grey&gt;Click commodity name to view full cartel prices&lt;reset&gt;\n")
+end</script>
 					<eventHandlerList />
 				</Script>
 			</ScriptGroup>
