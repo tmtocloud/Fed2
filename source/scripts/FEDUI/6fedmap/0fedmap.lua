@@ -1,1 +1,0 @@
-fedmap = fedmap or {}
