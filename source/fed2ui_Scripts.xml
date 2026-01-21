@@ -1421,213 +1421,623 @@ end</script>
 				<script>FEDUI = FEDUI or {}</script>
 				<eventHandlerList />
 				<Script isActive="yes" isFolder="no">
-					<name>Fed2UI</name>
+					<name>style</name>
 					<packageName></packageName>
-					<script>--===[ generate the adjustable containers everything goes into ]===--
-function FEDUI.buildFramework()
+					<script>FEDUI.style = FEDUI.style or {}
 
-  local FrameCSS = [[
-    background-color: black;
-    border-style: solid;
-    border-width: 1px;
-    border-radius: 5;
-    border-color: white;
-    margin: 1px;
-  ]]
-
------[ build the actual boxes, style and attach them ]-----
---left box for overflow
-  FEDUI.leftFrame = Adjustable.Container:new({ 
-    name = "FEDUI.leftFrame",
-    titleText = "FEDUI.leftFrame",
-    x = "0%", y = "0%",
-    width = "15%", height = "100%",
-    adjLabelstyle = FEDUI.FrameCSS, 
-    attached = "left" 
-  })
-
---right box for map, comms, and cargo
---sadly we can't have an 'upper' and 'lower' box at this point
---because adjustable containers only attach to borders and not to each other
---and it's too much work to integrate code that'll change that
-  FEDUI.rightFrame = Adjustable.Container:new({ 
-    name = "FEDUI.rightFrame",
-    titleText = "FEDUI.rightFrame",
-    x = "-20%", y = "0%",
-    width = "20%", height = "100%",
-    adjLabelstyle = FEDUI.FrameCSS, 
-    attached = "right" 
-  })
-
---top box for stats
-  FEDUI.topFrame = Adjustable.Container:new({
-    name = "FEDUI.topFrame",
-    titleText = "FEDUI.topFrame",
-    x = "15%", y = "0%",
-    width = "65%", height = "5%",
-    adjLabelstyle = FEDUI.FrameCSS, 
-    attached = "top" 
-  })
-
------[ add connect menu to the frames, so users can connect/disconnect them ]-----
-  Adjustable.Container:doAll(function(self) self:addConnectMenu() end)
+FEDUI.style.frameCSS = [[
+  background-color: black;
+  border-style: solid;
+  border-width: 1px;
+  border-radius: 5;
+  border-color: white;
+  margin: 1px;
+]]
   
------[ connect the containers ourselves ]-----
-  FEDUI.leftFrame:connectToBorder("left")
-  FEDUI.rightFrame:connectToBorder("right")
-  FEDUI.topFrame:connectToBorder("left")
-  FEDUI.topFrame:connectToBorder("right")
+-- style the labels: background color and a little border between each label
+FEDUI.style.labelCSS = [[
+  background-color: rgba(77,77,77,100); /*because DimGrey is not dark enough*/
+  border-right-style: solid;
+  border-left-style: solid;
+  border-width: 1px;
+  border-radius: 1;
+  border-color: white;
+]]
 
------[ lock the containers in place ]-----
-  FEDUI.leftFrame:lockContainer("border")
-  FEDUI.rightFrame:lockContainer("border")
-  FEDUI.topFrame:lockContainer("border")
+-- Styling for tabs
+--future?: some method to set text size on tabs
+FEDUI.style.activeTabText    = "white"     --active tab text color
+FEDUI.style.activeTabColor   = "black"     --active tab window color
+FEDUI.style.inactiveTabText  = "lightgrey" --inactive tab text color
+FEDUI.style.inactiveTabColor = "dimgrey"   --inactive tab window color
 
-end
-
---===[ populate the top framework with labels ]===--
-function FEDUI.buildHeader()
-
---build the hbox the stat labels will go into
-  FEDUI.header = Geyser.HBox:new({
-    name = "FEDUI.header",
-    x = 0, y = 0,
-    width = "100%",
-    height = "100%",
-  }, FEDUI.topFrame)
-
---create the labels inside the box
---six labels: rank, hold space, fuel, stamina, groats, slithies
-  for i = 1, 6 do
-    FEDUI["Label"..i] = Geyser.Label:new({
-      name = "FEDGUI.label"..i,
-      --message = "test text",
-    }, FEDUI.header)
-  end
-
---style the labels: background color and a little border between each label
-  local LabelCSS = [[
-    background-color: rgba(77,77,77,100); /*because DimGrey is not dark enough*/
-    border-right-style: solid;
-    border-left-style: solid;
-    border-width: 1px;
-    border-radius: 1;
-    border-color: white;
-  ]]
-    
-  FEDUI.Label1:setStyleSheet(LabelCSS)
-  FEDUI.Label1:setFontSize(12)
+-- active tab 
+FEDUI.style.activeTabCSS = FEDUI.style.activeTabCSS or [[
+  background-color: ]] .. FEDUI.style.activeTabColor .. [[;
+  color: ]] .. FEDUI.style.activeTabText .. [[;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  border-width: 1px;
+  border-style: solid;
+  border-color: ]] .. FEDUI.style.activeTabText .. [[;
+  margin-right: 1px;
+  margin-left: 1px;
+  qproperty-alignment: 'AlignVCenter';
+]]
   
-  FEDUI.Label2:setStyleSheet(LabelCSS)
-  FEDUI.Label2:setFontSize(12)
-  
-  FEDUI.Label3:setStyleSheet(LabelCSS)
-  FEDUI.Label3:setFontSize(12)
-  
-  FEDUI.Label4:setStyleSheet(LabelCSS)
-  FEDUI.Label4:setFontSize(12)
-  
-  FEDUI.Label5:setStyleSheet(LabelCSS)
-  FEDUI.Label5:setFontSize(12)
-  
-  FEDUI.Label6:setStyleSheet(LabelCSS)
-  FEDUI.Label6:setFontSize(12)
-
-end
-
---===[ populate the framework with tabs - requires AdjustableTabWindow ]===--
-function FEDUI.buildTabs()
-
------[ styling for tabs ]-----
---wanted: some method to set text size on tabs
-
-  local activeTabText = "white" --active tab text color
-  local activeTabColor = "black" --active tab window color
-  
-  local inactiveTabText = "lightgrey" --inactive tab text color
-  local inactiveTabColor = "dimgrey" --inactive tab window color
-
---active tab 
-  activeTabCSS = activeTabCSS or [[
-    background-color: ]]..activeTabColor..[[;
-    color: ]]..activeTabText..[[;
+-- inactive tab - will highlight with the active tab colors on mouseover
+FEDUI.style.inactiveTabCSS = FEDUI.style.inactiveTabCSS or [[
+  QLabel::hover{
+    background-color: ]] .. FEDUI.style.activeTabColor .. [[;
+    color: ]] .. FEDUI.style.activeTabText .. [[;
     border-top-left-radius: 10px;
     border-top-right-radius: 10px;
     border-width: 1px;
     border-style: solid;
-    border-color: ]]..activeTabText..[[;
+    border-color: ]] .. FEDUI.style.activeTabText .. [[;
     margin-right: 1px;
     margin-left: 1px;
     qproperty-alignment: 'AlignVCenter';
-    ]]
-    
---inactive tab - will highlight with the active tab colors on mouseover
-    inactiveTabCSS = inactiveTabCSS or [[QLabel::hover{
-        background-color: ]]..activeTabColor..[[;
-        color: ]]..activeTabText..[[;
-        border-top-left-radius: 10px;
-        border-top-right-radius: 10px;
-        border-width: 1px;
-        border-style: solid;
-        border-color: ]]..activeTabText..[[;
-        margin-right: 1px;
-        margin-left: 1px;
-        qproperty-alignment: 'AlignVCenter';
-    }
-    QLabel::!hover{
-        background-color: ]]..inactiveTabColor..[[;
-        color: ]]..inactiveTabText..[[;
-        border-top-left-radius: 10px;
-        border-top-right-radius: 10px;
-        margin-right: 1px;
-        margin-left: 1px;
-        qproperty-alignment: 'AlignVCenter';
-    }
-    ]]
+  }
+  QLabel::!hover{
+    background-color: ]] .. FEDUI.style.inactiveTabColor .. [[;
+    color: ]] .. FEDUI.style.inactiveTabText .. [[;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    margin-right: 1px;
+    margin-left: 1px;
+    qproperty-alignment: 'AlignVCenter';
+  }
+]]
 
---the outer border of the window, which should never be seen since it's being covered by a container
-  local footerCSS = [[
-    background-color: ]] .. activeTabColor..[[;
-    border-bottom-left-radius: 1px;
-    border-bottom-right-radius: 1px;
-    border-width: 1px;
+-- The outer border of the window, which should never be seen since it's being covered by a container
+FEDUI.style.footerCSS = [[
+  background-color: ]] .. FEDUI.style.activeTabColor .. [[;
+  border-bottom-left-radius: 1px;
+  border-bottom-right-radius: 1px;
+  border-width: 1px;
+  border-style: solid;
+  border-color: ]] .. FEDUI.style.activeTabText .. [[;
+]]
+
+-- The core of the window, which should never be seen because we're using it as a container
+FEDUI.style.centerCSS = [[
+  background-color: ]] .. FEDUI.style.inactiveTabColor .. [[;
+  border-radius: 5px;
+  margin: 5px;
+]]
+
+-- Modern button styling
+FEDUI.style.buttonCSS = [[
+  QLabel{
+    background-color: rgba(40, 40, 45, 200);
     border-style: solid;
-    border-color: ]]..activeTabText..[[;
-    ]]
-  
---the core of the window, which should never be seen because we're using it as a container
-  local centerCSS = [[
-    background-color: ]]..inactiveTabColor..[[;
-    border-radius: 5px;
-    margin: 5px;
-  ]]
+    border-width: 1px;
+    border-radius: 3px;
+    border-color: rgba(100, 100, 110, 180);
+    color: rgba(200, 200, 210, 255);
+    font-size: 11px;
+    font-weight: bold;
+  }
+  QLabel::hover{
+    background-color: rgba(60, 60, 70, 220);
+    border-color: rgba(120, 180, 255, 200);
+    color: white;
+  }
+]]
 
------[ place Overflow/Commodities tab windows ]-----
-  FEDUI.tabLeft = Adjustable.TabWindow:new({
-    name = "FEDUI.tabLeft",
-    x = "0%", y = "0%",
-    width = "100%",
-    height = "100%",
-    tabBarHeight = "5%",
-    tabs = {"Overflow", "Commodities"},
-    activeTabStyle = activeTabCSS,
-    inactiveTabStyle = inactiveTabCSS,
-    footerStyle = footerCSS,
-    centerStyle = centerCSS,
-  }, FEDUI.leftFrame)
+FEDUI.style.disabledButtonCSS = [[
+  QLabel{
+    background-color: rgba(25, 25, 28, 150);
+    border-style: solid;
+    border-width: 1px;
+    border-radius: 3px;
+    border-color: rgba(60, 60, 65, 120);
+    color: rgba(80, 80, 85, 180);
+    font-size: 11px;
+    font-weight: bold;
+  }
+]]
+
+FEDUI.style.toggleButtonCSS = [[
+  QLabel{
+    background-color: rgba(50, 50, 55, 220);
+    border-style: solid;
+    border-width: 1px;
+    border-radius: 3px;
+    border-color: rgba(120, 120, 130, 200);
+    color: rgba(220, 220, 230, 255);
+    font-size: 10px;
+    font-weight: bold;
+  }
+  QLabel::hover{
+    background-color: rgba(70, 130, 180, 240);
+    border-color: rgba(150, 200, 255, 230);
+    color: white;
+  }
+]]</script>
+					<eventHandlerList />
+				</Script>
+				<Script isActive="yes" isFolder="no">
+					<name>setup</name>
+					<packageName></packageName>
+					<script>function FEDUI.tableContains(table, element)
+  for _, value in pairs(table) do
+    if value == element then
+      return true
+    end
+  end
+  return false
+end
+
+function FEDUI.convertValue(amount) --format very long numbers
+  local formatted = amount
+
+  if tonumber(formatted) == nil then return nil end
+
+  if tonumber(formatted) &lt;= 1000000 then --we are below or just equal to a meg
+    while true do
+      formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", '%1,%2')
+
+      if (k==0) then
+        break
+      end
+    end
+  else --we are above a meg
+    --divide by 100,000 so the decimal is shifted
+    --floor the result to throw away everything after the decimal
+    --divide by 10 to put the decimal in the right spot
+    formatted = math.floor(tonumber(formatted)/100000) / 10 .. " m"
+  end
+
+  return formatted
+end
+
+function FEDUI.colorPercent(numCur, numMax) --colorize based on a percentage
+  --0 is ansiRed, 5 is ansiYellow, 9 is ansiGreen, 10 is default white
+  --unfortunately mudlet's color table doesn't have a good gradiant 
+  --so hexcodes from a random online gradiant tool it is
+  local colorGrad = {[0] = "#800000", [1] = "#801a00", [2] = "#803400", [3] = "#804e00", [4] = "#806800", 
+    [5] = "#808000", [6] = "#668000", [7] = "#4c8000", [8] = "#328000", [9] = "#008000", [10] = "#FFFFFF"
+  }
+  --divide the current value by the max value to get a percentage
+  --then multiply it by ten to shift the decimal
+  --then floor it to chop off everything after the decimal
+  --should result in a number between 0 and 10
+  percent = math.floor((tonumber(numCur) / tonumber(numMax)) * 10)
+  color   = colorGrad[percent]
+
+  return color
+end
+
+-- Establish ranks as integers for logic that displays based on rank
+FEDUI.ranks = {
+  ["Groundhog"]     = 0,
+  ["Commander"]     = 1,
+  ["Captain"]       = 2,
+  ["Adventurer"]    = 3,
+  ["Adventuress"]   = 3,
+  ["Merchant"]      = 4,
+  ["Trader"]        = 5,
+  ["Industrialist"] = 6,
+  ["Manufacturer"]  = 7,
+  ["Financier"]     = 8,
+  ["Founder"]       = 9,
+}
+
+--magic numbers taken from the documentation (https://federation2.com/guide/#sec-220.10)
+--magic numbers confirmed by in-game 'help tax' document
+--everyone over Financier has no cap (but may have a cap of 1,000,000,000?)
+--planets and companies do have a cap of 1,000,000,000 but we don't track this so it's fine
+--businesses have a cap of 100,000,000 but we also don't track this so it's still fine
+FEDUI.magicCashNumbers = {
+  ["Commander"] = 250000,
+  ["Captain"] = 400000,
+  ["Adventurer"] = 600000,
+  ["Adventuress"] = 600000,
+  ["Merchant"] = 7500000,
+  ["Trader"] = 12500000,
+  ["Industrialist"] = 17500000,
+  ["Manufacturer"] = 22500000,
+  ["Financier"] = 27500000,
+}
+
+--numbers taken from documentation (https://federation2.com/guide/#sec-100.60)
+--used with the ExchangeTriggers
+FEDUI.commoditiesBasePrice = {
+  Cereals = 270,
+  Fruit = 420,
+  Furs = 650,
+  Hides = 400,
+  Livestock = 210,
+  Meats = 410,
+  Soya = 230,
+  Spices = 650,
+  Textiles = 300,
+  Woods = 700,
+  Alloys = 180,
+  Clays = 520,
+  Crystals = 650,
+  Gold = 600,
+  Monopoles = 720,
+  Nickel = 370,
+  Petrochemicals = 400,
+  Radioactives = 540,
+  Semiconductors = 350,
+  Xmetals = 480,
+  Explosives = 470,
+  Generators = 670,
+  LanzariK = 700,
+  LubOils = 560,
+  Mechparts = 420,
+  Munitions = 250,
+  Nitros = 230,
+  Pharmaceuticals = 630,
+  Polymers = 200,
+  Propellants = 260,
+  RNA = 380,
+  AntiMatter = 480,
+  Controllers = 710,
+  Droids = 700,
+  Electros = 250,
+  GAsChips = 450,
+  Lasers = 470,
+  NanoFabrics = 850,
+  Nanos = 550,
+  Powerpacks = 680,
+  Synths = 560,
+  Tools = 350,
+  TQuarks = 835,
+  Vidicasters = 380,
+  Weapons = 420,
+  BioChips = 650,
+  BioComponents = 760,
+  Clinics = 450,
+  Laboratories = 470,
+  MicroScalpels = 320,
+  Probes = 510,
+  Proteins = 260,
+  Sensors = 470,
+  ToxicMunchers = 470,
+  Tracers = 600,
+  Artifacts = 730,
+  Firewalls = 690,
+  Games = 210,
+  Holos = 260,
+  Hypnotapes = 430,
+  Katydidics = 610,
+  Libraries = 680,
+  Musiks = 470,
+  Sensamps = 520,
+  Simulations = 310,
+  Studios = 390,
+  Univators = 570,
+ }
+ 
+--certainly there's a better way to do it, but distances manually counted using the map
+--(https://federation2.com/guide/#sec-20.10)
+--used with CommanderWork triggers
+FEDUI.solDistances = {
+  BrassCastilo = 5,
+  BrassDoris = 2,
+  BrassEarth = 8,
+  BrassLattice = 4,
+  BrassMagellan = 7,
+  BrassMars = 6,
+  BrassMercury = 8,
+  BrassParadise = 8,
+  BrassPearl = 10,
+  BrassPhobos = 7,
+  BrassRhea = 5,
+  BrassSelena = 9,
+  BrassSilk = 4,
+  BrassSumatra = 4,
+  BrassTitan = 5,
+  BrassVenus = 7,
+  CastilloDoris = 4,
+  CastilloEarth = 3,
+  CastilloLattice = 6,
+  CastilloMagellan = 4,
+  CastilloMars = 2,
+  CastilloMercury = 6,
+  CastilloParadise = 6,
+  CastilloPearl = 8,
+  CastilloPhobos = 2,
+  CastilloRhea = 4,
+  CastilloSelena = 4,
+  CastilloSilk = 5,
+  CastilloSumatra = 2,
+  CastilloTitan = 2,
+  CastilloVenus = 5,
+  DorisEarth = 7,
+  DorisLattice = 3,
+  DorisMagellan = 6,
+  DorisMars = 5,
+  DorisMercury = 7,
+  DorisParadise = 7,
+  DorisPearl = 9,
+  DorisPhobos = 6,
+  DorisRhea = 4,
+  DorisSelena = 8,
+  DorisSilk = 3,
+  DorisSumatra = 3,
+  DorisTitan = 4,
+  DorisVenus = 6,
+  EarthLattice = 9,
+  EarthMagellan = 1,
+  EarthMars = 2,
+  EarthMercury = 3,
+  EarthParadise = 4,
+  EarthPearl = 5,
+  EarthPhobos = 2,
+  EarthRhea = 7,
+  EarthSelena = 1,
+  EarthSilk = 8,
+  EarthSumatra = 4,
+  EarthTitan = 5,
+  EarthVenus = 3,
+  LatticeMagellan = 8,
+  LatticeMars = 7,
+  LatticeMercury = 9,
+  LatticeParadise = 9,
+  LatticePearl = 11,
+  LatticePhobos = 8,
+  LatticeRhea = 6,
+  LatticeSelena = 10,
+  LatticeSilk = 5,
+  LatticeSumatra = 5,
+  LatticeTitan = 6,
+  LatticeVenus = 8,
+  MagellanMars = 2,
+  MagellanMercury = 2,
+  MagellanParadise = 3,
+  MagellanPearl = 4,
+  MagellanPhobos = 3,
+  MagellanRhea = 6,
+  MagellanSelena = 2,
+  MagellanSilk = 7,
+  MagellanSumatra = 3,
+  MagellanTitan = 5,
+  MagellanVenus = 2,
+  MarsMercury = 4,
+  MarsParadise = 4,
+  MarsPearl = 6,
+  MarsPhobos = 1,
+  MarsRhea = 5,
+  MarsSelena = 3,
+  MarsSilk = 6,
+  MarsSumatra = 2,
+  MarsTitan = 3,
+  MarsVenus = 3,
+  MercuryParadise = 4,
+  MercuryPearl = 2,
+  MercuryPhobos = 5,
+  MercuryRhea = 7,
+  MercurySelena = 2,
+  MercurySilk = 8,
+  MercurySumatra = 4,
+  MercuryTitan = 7,
+  MercuryVenus = 3,
+  ParadisePearl = 5,
+  ParadisePhobos = 5,
+  ParadiseRhea = 7,
+  ParadiseSelena = 5,
+  ParadiseSilk = 8,
+  ParadiseSumatra = 4,
+  ParadiseTitan = 7,
+  ParadiseVenus = 1,
+  PearlPhobos = 7,
+  PearlRhea = 9,
+  PearlSelena = 4,
+  PearlSilk = 10,
+  PearlSumatra = 6,
+  PearlTitan = 9,
+  PearlVenus = 4,
+  PhobosRhea = 6,
+  PhobosSelena = 3,
+  PhobosSilk = 7,
+  PhobosSumatra = 3,
+  PhobosTitan = 4,
+  PhobosVenus = 4,
+  RheaSelena = 8,
+  RheaSilk = 5,
+  RheaSumatra = 3,
+  RheaTitan = 2,
+  RheaVenus = 6,
+  SelenaSilk = 9,
+  SelenaSumatra = 5,
+  SelenaTitan = 6,
+  SelenaVenus = 4,
+  SilkSumatra = 4,
+  SilkTitan = 5,
+  SilkVenus = 7,
+  SumatraTitan = 3,
+  SumatraVenus = 3,
+  TitanVenus = 6,
+ }</script>
+					<eventHandlerList />
+				</Script>
+				<Script isActive="yes" isFolder="no">
+					<name>main</name>
+					<packageName></packageName>
+					<script>--  Build the UI at connection
+function FEDUI.buildUI()
+  FEDUI.buildFrames()
+  FEDUI.buildHeader()
+  FEDUI.buildTabs()
+  FEDUI.buildTabContent()
+  FEDUI.buildMovementButtons()
+  FEDUI.roomInfoEventHandler()
+  FEDUI.haulingUI()
+  FEDUI.tradingUI()
+  FEDUI.outputCommodities()
+  FEDUI.updateTabsForRank()
+end
+
+--should run on install, check that this package is what has been installed,
+--remove the generic mapper, then build the UI
+function FEDUI.onInstall(event, package, path)
+  if package == "fed2ui" then
+    if FEDUI.tableContains(getPackages(),"generic_mapper") then
+      uninstallPackage("generic_mapper")
+    end
+    FEDUI.buildUI()
+  end
+end
+
+-- These event handlers start everything
+registerAnonymousEventHandler("sysConnectionEvent", FEDUI.buildUI)
+registerAnonymousEventHandler("sysInstallPackage",  FEDUI.onInstall)</script>
+					<eventHandlerList />
+				</Script>
+				<ScriptGroup isActive="yes" isFolder="yes">
+					<name>ui</name>
+					<packageName></packageName>
+					<script></script>
+					<eventHandlerList />
+					<Script isActive="yes" isFolder="no">
+						<name>frames</name>
+						<packageName></packageName>
+						<script>-- Build the frames to hold everything
+function FEDUI.buildFrames()
+-- Left Navigation Frame
+  FEDUI.leftFrame = Adjustable.Container:new(
+    { 
+      name          = "FEDUI.leftFrame",
+      titleText     = "FEDUI.leftFrame",
+      x             = "0%",
+      y             = "0%",
+      width         = "15%",
+      height        = "100%",
+      adjLabelstyle = FEDUI.style.frameCSS, 
+      attached      = "left" 
+    }
+  )
+  FEDUI.leftFrame:connectToBorder("left")
+  FEDUI.leftFrame:lockContainer("border")
+
+-- Right Navigation Frame
+  FEDUI.rightFrame = Adjustable.Container:new(
+    { 
+      name          = "FEDUI.rightFrame",
+      titleText     = "FEDUI.rightFrame",
+      x             = "-20%",
+      y             = "0%",
+      width         = "20%",
+      height        = "100%",
+      adjLabelstyle = FEDUI.style.frameCSS, 
+      attached      = "right" 
+    }
+  )
+  FEDUI.rightFrame:connectToBorder("right")
+  FEDUI.rightFrame:lockContainer("border")
+
+  -- Build the box to split the right frame in half
+  FEDUI.vboxRight = Geyser.VBox:new(
+    {
+      name   = "FEDUI.vboxRight",
+      x      = 0,
+      y      = 0,
+      width  = "100%",
+      height = "100%",
+    },
+    FEDUI.rightFrame
+  )
+
+  -- Top Status Frame
+  FEDUI.topFrame = Adjustable.Container:new(
+    {
+      name          = "FEDUI.topFrame",
+      titleText     = "FEDUI.topFrame",
+      x             = "15%",
+      y             = "0%",
+      width         = "65%",
+      height        = "5%",
+      adjLabelstyle = FEDUI.style.frameCSS, 
+      attached      = "top" 
+    }
+  )
+  FEDUI.topFrame:connectToBorder("left")
+  FEDUI.topFrame:connectToBorder("right")
+  FEDUI.topFrame:lockContainer("border")
+
+-- Enable Adjustable Containers (Tabs), users can move tabs from default starting positions as they wish
+  Adjustable.Container:doAll(function(self) self:addConnectMenu() end)
+end
+
+</script>
+						<eventHandlerList />
+					</Script>
+					<Script isActive="yes" isFolder="no">
+						<name>header</name>
+						<packageName></packageName>
+						<script>-- Populate the top status frame with labels
+function FEDUI.buildHeader()
+  -- build the hbox the stat labels will go into
+  FEDUI.header = Geyser.HBox:new(
+    {
+      name   = "FEDUI.header",
+      x      = 0,
+      y      = 0,
+      width  = "100%",
+      height = "100%",
+    },
+    FEDUI.topFrame
+  )
+
+  --create the six labels inside the box: rank, hold space, fuel, stamina, groats, slithies
+  for i = 1, 6 do
+    FEDUI["Label"..i] = Geyser.Label:new(
+      {
+        name = "FEDUI.Label"..i,
+      },
+      FEDUI.header
+    )
+  end
     
+  FEDUI.Label1:setStyleSheet(FEDUI.style.labelCSS)
+  FEDUI.Label1:setFontSize(12)
   
------[ build and place Map and Comm/Cargo tab windows ]-----
---the box these two tab windows will go into
-  FEDUI.vboxRight = Geyser.VBox:new({
-    name = "FEDUI.vboxRight",
-    x = 0,
-    y = 0,
-    width = "100%",
-    height = "100%",
-  }, FEDUI.rightFrame)
+  FEDUI.Label2:setStyleSheet(FEDUI.style.labelCSS)
+  FEDUI.Label2:setFontSize(12)
   
---map tab
+  FEDUI.Label3:setStyleSheet(FEDUI.style.labelCSS)
+  FEDUI.Label3:setFontSize(12)
+  
+  FEDUI.Label4:setStyleSheet(FEDUI.style.labelCSS)
+  FEDUI.Label4:setFontSize(12)
+  
+  FEDUI.Label5:setStyleSheet(FEDUI.style.labelCSS)
+  FEDUI.Label5:setFontSize(12)
+  
+  FEDUI.Label6:setStyleSheet(FEDUI.style.labelCSS)
+  FEDUI.Label6:setFontSize(12)
+end</script>
+						<eventHandlerList />
+					</Script>
+					<Script isActive="yes" isFolder="no">
+						<name>tabs</name>
+						<packageName></packageName>
+						<script>function FEDUI.buildTabs()
+  -- Place Overflow/Commodities tabs In Left Navigation Frame (default location)
+  FEDUI.tabLeft = Adjustable.TabWindow:new(
+    {
+      name             = "FEDUI.tabLeft",
+      x                = "0%",
+      y                = "0%",
+      width            = "100%",
+      height           = "100%",
+      tabBarHeight     = "5%",
+      tabs             = {"Overflow", "Commodities"},
+      activeTabStyle   = FEDUI.style.activeTabCSS,
+      inactiveTabStyle = FEDUI.style.inactiveTabCSS,
+      footerStyle      = FEDUI.style.footerCSS,
+      centerStyle      = FEDUI.style.centerCSS,
+    },
+    FEDUI.leftFrame
+  )
+  
+  -- Place Map/Comms tabs on the top of the Right Navigation Frame (default location)
   FEDUI.tabTopRight = Adjustable.TabWindow:new(
     {
       name             = "FEDUI.tabTopRight",
@@ -1637,15 +2047,15 @@ function FEDUI.buildTabs()
       height           = "100%",
       tabBarHeight     = "10%",
       tabs             = {"fedmap","Comm"},
-      activeTabStyle   = activeTabCSS,
-      inactiveTabStyle = inactiveTabCSS,
-      footerStyle      = footerCSS,
-      centerStyle      = centerCSS,
+      activeTabStyle   = FEDUI.style.activeTabCSS,
+      inactiveTabStyle = FEDUI.style.inactiveTabCSS,
+      footerStyle      = FEDUI.style.footerCSS,
+      centerStyle      = FEDUI.style.centerCSS,
     },
     FEDUI.vboxRight
   )
   
-  --cargo and commerce tabs
+  -- Place Cargo/Hauling/Trading tabs on the bottom of the Right Navigation Frame (default location)
   FEDUI.tabBottomRight = Adjustable.TabWindow:new(
     {
       name             = "FEDUI.tabBottomRight",
@@ -1655,18 +2065,40 @@ function FEDUI.buildTabs()
       height           = "100%",
       tabBarHeight     = "10%",
       tabs             = {"Cargo","Hauling","Trading"},
-      activeTabStyle   = activeTabCSS,
-      inactiveTabStyle = inactiveTabCSS,
-      footerStyle      = footerCSS,
-      centerStyle      = centerCSS,
+      activeTabStyle   = FEDUI.style.activeTabCSS,
+      inactiveTabStyle = FEDUI.style.inactiveTabCSS,
+      footerStyle      = FEDUI.style.footerCSS,
+      centerStyle      = FEDUI.style.centerCSS,
     },
     FEDUI.vboxRight
   )
 end
 
--- populate our various tabs
-function FEDUI.popUI()
+function FEDUI.updateTabsForRank()
+  local rank = (gmcp.char and gmcp.char.vitals and gmcp.char.vitals.rank) or {}
+  local rankLevel = FEDUI.ranks[rank] or 0
 
+  -- Hauling: only rank 1+
+  if rankLevel &lt; 1 then
+    FEDUI.tabBottomRight:removeTab("Hauling")
+  else
+    if not table.contains(FEDUI.tabBottomRight.tabs, "Hauling") then
+      FEDUI.tabBottomRight:addTab("Hauling", 2)
+    end
+  end
+
+  -- Trading: only rank 4+
+  if rankLevel &lt; 4 then
+    FEDUI.tabBottomRight:removeTab("Trading")
+  else
+    if not table.contains(FEDUI.tabBottomRight.tabs, "Trading") then
+      FEDUI.tabBottomRight:addTab("Trading", 3)
+    end
+  end
+end
+
+-- populate our various tabs
+function FEDUI.buildTabContent()
   local textSize = 12
 
   --put map into map window
@@ -1824,93 +2256,253 @@ function FEDUI.popUI()
     },
     FEDUI.tradingContainer
   )
-end
+end</script>
+						<eventHandlerList />
+					</Script>
+				</ScriptGroup>
+				<ScriptGroup isActive="yes" isFolder="yes">
+					<name>content</name>
+					<packageName></packageName>
+					<script>fedmap = fedmap or {}</script>
+					<eventHandlerList />
+					<Script isActive="yes" isFolder="no">
+						<name>FEDUI.updateHeader</name>
+						<packageName></packageName>
+						<script>--Tracking: Rank, Cargo Space, Fuel, Stamina, Money, Slithies
+function FEDUI.updateHeader()
+  local vitals = (gmcp.char and gmcp.char.vitals) or {}
+  local ship   = (gmcp.char and gmcp.char.ship) or {}
 
---===[ build the UI at connection ]===--
-function FEDUI.buildUI()
-  FEDUI.buildFramework()
-  FEDUI.buildHeader()
-  FEDUI.buildTabs()
-  FEDUI.popUI()
-  FEDUI.buildMovementButtons()
-  FEDUI.registerGMCPHandlers()
-  FEDUI.outputCommodities()
-end
+  local rank      = vitals.rank or "-"
+  local holdCur   = (ship.hold and ship.hold.cur) or "-"
+  local holdMax   = (ship.hold and ship.hold.max) or "-"
+  local fuelCur   = (ship.fuel and ship.fuel.cur) or "-"
+  local fuelMax   = (ship.fuel and ship.fuel.max) or "-"
+  local stamCur   = (vitals.stamina and vitals.stamina.cur) or "-"
+  local stamMax   = (vitals.stamina and vitals.stamina.max) or "-"
+  local cash      = FEDUI.convertValue(vitals.cash) or "-"
+  local slith     = vitals.slithies or "-"
+  local groatsMax = FEDUI.convertValue(FEDUI.magicCashNumbers[rank]) or "-"
 
---should run on install, check that this package is what has been installed,
---remove the generic mapper, then build the UI
-function FEDUI.onInstall(event, package, path)
-  if package == "fed2ui" then
-    if table.contains(getPackages(),"generic_mapper") then
-      uninstallPackage("generic_mapper")
-    end
-    FEDUI.buildUI()
+  FEDUI.Label1:echo("Rank: " .. [[&lt;b&gt;]] .. rank .. [[&lt;/b&gt;]])
+  if tonumber(holdCur) then FEDUI.Label2:echo("Hold: " ..    [[&lt;b&gt;&lt;font color=]] .. FEDUI.colorPercent(holdCur,holdMax)..[[&gt;]] .. holdCur .. [[&lt;/font&gt;&lt;/b&gt;]] .. "/" .. holdMax) end
+  if tonumber(fuelCur) then FEDUI.Label3:echo("Fuel: " ..    [[&lt;b&gt;&lt;font color=]] .. FEDUI.colorPercent(fuelCur,fuelMax)..[[&gt;]] .. fuelCur .. [[&lt;/font&gt;&lt;/b&gt;]] .. "/" .. fuelMax) end
+  if tonumber(stamCur) then FEDUI.Label4:echo("Stamina: " .. [[&lt;b&gt;&lt;font color=]] .. FEDUI.colorPercent(stamCur,stamMax)..[[&gt;]] .. stamCur .. [[&lt;/font&gt;&lt;/b&gt;]] .. "/" .. stamMax) end
+
+  if groatsMax == "-" then
+    FEDUI.Label5:echo("Groats: " .. [[&lt;b&gt;]] .. cash  .. [[&lt;/b&gt;]])
+  else
+    FEDUI.Label5:echo("Groats: " .. [[&lt;b&gt;]] .. cash  .. [[&lt;/b&gt;]] .. "/" .. groatsMax)
+  end
+
+  FEDUI.Label6:echo("Slithies: " .. [[&lt;b&gt;]] .. slith .. [[&lt;/b&gt;]])
+  
+  FEDUI.updateTabsForRank()
+end</script>
+						<eventHandlerList>
+							<string>gmcp.char</string>
+						</eventHandlerList>
+					</Script>
+					<Script isActive="yes" isFolder="no">
+						<name>commods</name>
+						<packageName></packageName>
+						<script>--puts the CommodyTable in the Commodities window, sorted by price
+function FEDUI.outputCommodities()
+  clearWindow("FEDUI.commoditiesWindow")
+
+  local entities = {}
+  for key, value in pairs(FEDUI.commoditiesBasePrice) do
+    table.insert(entities, {key = key, value = value})
+  end
+  table.sort(entities, function (a,b) return a.key &lt; b.key end)
+  
+  for key, entity in ipairs(entities) do
+    FEDUI.commoditiesWindow:echo(entity.key.." ("..entity.value..")\n")
+  end
+end</script>
+						<eventHandlerList />
+					</Script>
+					<Script isActive="yes" isFolder="no">
+						<name>map</name>
+						<packageName></packageName>
+						<script>-- tell mudlet that we're a legit mapper
+mudlet               = mudlet or {}
+mudlet.mapper_script = true
+
+-- custom env colors
+setCustomEnvColor(33, 255, 192, 203, 255) --mudlet's 'pink', used for auto-generated unexplored rooms
+
+--mapper default color reference--
+--257 - dark red    --265 - red
+--258 - dark green	--266 - green
+--259 - dark yellow	--267 - yellow
+--260 - dark blue	  --268 - blue
+--261 - dark pink	  --269 - pink
+--262 - dark cyan	  --270 - cyan
+--263 - light grey	--271 - white
+--264 - black		    --272 - dark grey
+
+
+-----[ set room environment ]-----
+--set the room color and symbol based on the room's flags
+--colors are the mapper defaults, found from getCustomEnvColorTable()
+--if the 'link', 'orbit', 'shuttlepad', or 'exchange' flags are found, room is maroon
+--having just the 'space' flag or no flags at all results in the room being grey
+--rooms with the 'shuttlepad' flag get a star symbol so they're easy to find
+--rooms with the 'exchange' flag get 'EX' as a symbol so they're easy to find
+--not setting symbols on 'link' or 'orbit' flags because there's too much variety here to hardcode something
+	--end users should be setting their own symbols via alias anyway
+function fedmap.roomColor(roomID)
+  local table = gmcp.room.info.flags
+
+  if next(table) == nil then --the room's table of flags is empty, this is an ordinary room on a planet
+  	setRoomEnv(roomID, 272)
+    setRoomChar(roomID, "")
+  else
+  	local flags = {}
+
+  	for key,value in ipairs(table) do        --take the values from the room's table of flags
+  		setRoomUserData(roomID, value, "true")	--put them into the room's user data
+		end
+
+		if getRoomUserData(roomID, "link") == "true" then --this room lets people jump to different systems
+			setRoomEnv(roomID, 260)
+      setRoomChar(roomID, "")
+		elseif getRoomUserData(roomID, "orbit") == "true" or gmcp.room.info.orbit then --this room lets people board their shuttle to land on the planet
+			setRoomEnv(roomID, 257)
+      setRoomChar(roomID, "")
+		elseif getRoomUserData(roomID, "space") == "true" then --this is an ordinary space room with no orbits or system links
+			setRoomEnv(roomID, 272)
+      setRoomChar(roomID, "")
+		elseif getRoomUserData(roomID, "shuttlepad") == "true" then --this room lets people board their shuttle to reach their spaceship
+			setRoomEnv(roomID, 257)
+			setRoomChar(roomID, "★")
+		elseif getRoomUserData(roomID, "exchange") == "true" then --this room lets people use the exchange features
+			setRoomEnv(roomID, 257)
+			setRoomChar(roomID, "EX")
+		else 							--we have no idea what this room is, panic
+			setRoomEnv(roomID, 259)
+      setRoomChar(roomID, "")
+  	end
   end
 end
 
-registerAnonymousEventHandler("sysConnectionEvent", FEDUI.buildUI)
-registerAnonymousEventHandler("sysInstallPackage", FEDUI.onInstall)</script>
-					<eventHandlerList />
-				</Script>
-				<Script isActive="yes" isFolder="no">
-					<name>fedMapCommands</name>
-					<packageName></packageName>
-					<script>FEDUI.movement         = FEDUI.movement or {}
+-----[ create ghost room ]-----
+--unexplored rooms are generated for each valid exit, so we have something to hook the exit to
+--they're colored a pale pink and identified with a ? so we know they haven't been entered yet
+function fedmap.makeGhostRoom(destinationHash, areaID, number) --called by generateExits
+	local ID = createRoomID()                           --get the next free room number
+  
+	setRoomIDbyHash(ID, destinationHash)                --assign that room number to the destination room's hash 
+	addRoom(ID, areaID)                                 --create the room using our generated room number
+	local coordX, coordY = fedmap.makeCoords(number)
+
+	setRoomCoordinates(ID, coordX, coordY, 0)
+	setRoomEnv(ID, 33)                                  --custom env, not one of the mapper defaults
+	setRoomChar(ID, "?")
+end
+
+-----[ create exits ]-----
+--convert each fed room number into a a room hash, check to see if there's a mapper room number associated
+--if there is no room already existing with that hash, create one via makeGhostRoom
+--once we are assured the room exists, hook an exit to it
+function fedmap.generateExits(areaID, roomID) --called as part of fedmap.makeRoom
+	local exits = gmcp.room.info.exits
+
+	for dir, number in pairs(exits) do
+		local destinationHash = gmcp.room.info.system .. "." .. gmcp.room.info.area .. "." .. number
+
+		if getRoomIDbyHash(destinationHash) == -1 then --no room is associated with this hash
+      fedmap.makeGhostRoom(destinationHash, areaID, number) --let's fix that
+    end
+
+		setExit(roomID, getRoomIDbyHash(destinationHash), dir)
+	end
+end
+
+--this function returns the areaID, adding the area to mudlet's mapper table if necessary
+function fedmap.findAreaID(areaname)
+	--areaname is expected to be gmcp.room.info.area
+	local list = getAreaTable() --load mudlet's mapper table
+	local areaID = -1
+
+	if list[areaname] ~= nil then --not nil, so there is already an area with that name in the mapper table
+		areaID = list[areaname] --get the value indexed to the area's name
+	else --nil result, so the area name is NOT the mapper table and needs to be added
+		areaID = addAreaName(areaname) --add the area to the mapper table, returning the new area ID
+    setMapZoom(6, areaID) --sets the zoom of our new area to something reasonable
+	end		
+	
+	return areaID
+end
+
+
+-----[ generate room coordinates ]-----
+--rooms are built on a grid that is 64 sqares wide and 63 squares tall
+--we only need to care about how wide the grid is to get the room coordinates
+--calculate their location using the power of MATH
+function fedmap.makeCoords(roomnum)
+	--roomnum is expected to be gmcp.room.info.num
+	local coordX = roomnum % 64 --modulus to get the column
+  local coordY = math.floor(roomnum / 64) --evidently mudlet has no native floor division
+
+	--there is no Z coord returned because the underlying grid is flat
+	return coordX, -coordY
+end
+--Y is returned inverted because the game's map puts 0,0 at the top left
+--and mudlet's map puts 0,0 in the center
+--inverting Y syncs everything back up
+
+
+-- create room
+-- generates a room if no room exists, and either way centers the map on the current location
+-- this is the function called when we receive gmcp.room data from the game
+function fedmap.makeRoom()
+	local roomHash       = gmcp.room.info.system .. "." .. gmcp.room.info.area .. "." .. gmcp.room.info.num
+	local roomID         = getRoomIDbyHash(roomHash)
+	local areaID         = fedmap.findAreaID(gmcp.room.info.area)
+	local coordX, coordY = fedmap.makeCoords(gmcp.room.info.num)
+	
+  -- no room ID matches the hash
+	if roomID == -1 then
+		roomID = createRoomID()                       --get the next free room number
+		setRoomIDbyHash(roomID, roomHash)             --assign that room number to this room's hash
+		addRoom(roomID, areaID)                       --create the room using our generated room number
+		setRoomCoordinates(roomID, coordX, coordY, 0) --place the room on the map
+		setRoomName(roomID, gmcp.room.info.name)
+
+    fedmap.roomColor(roomID)
+    fedmap.generateExits(areaID, roomID)
+  --existing room already has an ID, hash, and coordinates but hasn't had its info set
+  elseif getRoomName(roomID) == "" then
+		setRoomName(roomID, gmcp.room.info.name)
+
+		fedmap.roomColor(roomID)
+		fedmap.generateExits(areaID, roomID)
+	end
+
+  centerview(roomID)
+end</script>
+						<eventHandlerList />
+					</Script>
+					<Script isActive="yes" isFolder="no">
+						<name>callMap</name>
+						<packageName></packageName>
+						<script>function callMap()
+  fedmap.makeRoom()
+end</script>
+						<eventHandlerList>
+							<string>gmcp.room</string>
+						</eventHandlerList>
+					</Script>
+					<Script isActive="yes" isFolder="no">
+						<name>movement</name>
+						<packageName></packageName>
+						<script>FEDUI.movement         = FEDUI.movement or {}
 FEDUI.movement.visible = true
 
 -- Build Movement Buttons
 function FEDUI.buildMovementButtons()
-  
-  -- Modern button styling
-  local buttonCSS = [[
-    QLabel{
-      background-color: rgba(40, 40, 45, 200);
-      border-style: solid;
-      border-width: 1px;
-      border-radius: 3px;
-      border-color: rgba(100, 100, 110, 180);
-      color: rgba(200, 200, 210, 255);
-      font-size: 11px;
-      font-weight: bold;
-    }
-    QLabel::hover{
-      background-color: rgba(60, 60, 70, 220);
-      border-color: rgba(120, 180, 255, 200);
-      color: white;
-    }
-  ]]
-  
-  local disabledButtonCSS = [[
-    QLabel{
-      background-color: rgba(25, 25, 28, 150);
-      border-style: solid;
-      border-width: 1px;
-      border-radius: 3px;
-      border-color: rgba(60, 60, 65, 120);
-      color: rgba(80, 80, 85, 180);
-      font-size: 11px;
-      font-weight: bold;
-    }
-  ]]
-  
-  local toggleButtonCSS = [[
-    QLabel{
-      background-color: rgba(50, 50, 55, 220);
-      border-style: solid;
-      border-width: 1px;
-      border-radius: 3px;
-      border-color: rgba(120, 120, 130, 200);
-      color: rgba(220, 220, 230, 255);
-      font-size: 10px;
-      font-weight: bold;
-    }
-    QLabel::hover{
-      background-color: rgba(70, 130, 180, 240);
-      border-color: rgba(150, 200, 255, 230);
-      color: white;
-    }
-  ]]
-  
   ------------- Main Container -------------------------------
   FEDUI.mapCommandsContainer = Geyser.Container:new(
     {
@@ -1948,7 +2540,7 @@ function FEDUI.buildMovementButtons()
     FEDUI.inOutBox
   )
 
-  FEDUI.btnIn:setStyleSheet(buttonCSS)
+  FEDUI.btnIn:setStyleSheet(FEDUI.style.buttonCSS)
   FEDUI.btnIn:setClickCallback("FEDUI.moveIn")
   
   ------------- OUT Button -----------------------------------
@@ -1964,7 +2556,7 @@ function FEDUI.buildMovementButtons()
     FEDUI.inOutBox
   )
 
-  FEDUI.btnOut:setStyleSheet(buttonCSS)
+  FEDUI.btnOut:setStyleSheet(FEDUI.style.buttonCSS)
   FEDUI.btnOut:setClickCallback("FEDUI.moveOut")
   
   ------------- Compass Container ----------------------------
@@ -1996,7 +2588,7 @@ function FEDUI.buildMovementButtons()
     FEDUI.cardinalBox
   )
   
-  FEDUI.btnNW:setStyleSheet(buttonCSS)
+  FEDUI.btnNW:setStyleSheet(FEDUI.style.buttonCSS)
   FEDUI.btnNW:setClickCallback("FEDUI.moveNW")
   
   ------------- N Button -------------------------------------
@@ -2012,7 +2604,7 @@ function FEDUI.buildMovementButtons()
     FEDUI.cardinalBox
   )
   
-  FEDUI.btnN:setStyleSheet(buttonCSS)
+  FEDUI.btnN:setStyleSheet(FEDUI.style.buttonCSS)
   FEDUI.btnN:setClickCallback("FEDUI.moveN")
   
   ------------- NE Button ------------------------------------
@@ -2028,7 +2620,7 @@ function FEDUI.buildMovementButtons()
     FEDUI.cardinalBox
   )
   
-  FEDUI.btnNE:setStyleSheet(buttonCSS)
+  FEDUI.btnNE:setStyleSheet(FEDUI.style.buttonCSS)
   FEDUI.btnNE:setClickCallback("FEDUI.moveNE")
   
   ------------- W Button -------------------------------------
@@ -2044,7 +2636,7 @@ function FEDUI.buildMovementButtons()
     FEDUI.cardinalBox
   )
   
-  FEDUI.btnW:setStyleSheet(buttonCSS)
+  FEDUI.btnW:setStyleSheet(FEDUI.style.buttonCSS)
   FEDUI.btnW:setClickCallback("FEDUI.moveW")
   
   ------------- LOOK Button ----------------------------------
@@ -2060,7 +2652,7 @@ function FEDUI.buildMovementButtons()
     FEDUI.cardinalBox
   )
   
-  FEDUI.btnLook:setStyleSheet(buttonCSS)
+  FEDUI.btnLook:setStyleSheet(FEDUI.style.buttonCSS)
   FEDUI.btnLook:setClickCallback("FEDUI.look")
   
   ------------- E Button -------------------------------------
@@ -2076,7 +2668,7 @@ function FEDUI.buildMovementButtons()
     FEDUI.cardinalBox
   )
   
-  FEDUI.btnE:setStyleSheet(buttonCSS)
+  FEDUI.btnE:setStyleSheet(FEDUI.style.buttonCSS)
   FEDUI.btnE:setClickCallback("FEDUI.moveE")
   
   ------------- SW Button ------------------------------------
@@ -2092,7 +2684,7 @@ function FEDUI.buildMovementButtons()
     FEDUI.cardinalBox
   )
   
-  FEDUI.btnSW:setStyleSheet(buttonCSS)
+  FEDUI.btnSW:setStyleSheet(FEDUI.style.buttonCSS)
   FEDUI.btnSW:setClickCallback("FEDUI.moveSW")
   
   ------------- S Button -------------------------------------
@@ -2108,7 +2700,7 @@ function FEDUI.buildMovementButtons()
     FEDUI.cardinalBox
   )
   
-  FEDUI.btnS:setStyleSheet(buttonCSS)
+  FEDUI.btnS:setStyleSheet(FEDUI.style.buttonCSS)
   FEDUI.btnS:setClickCallback("FEDUI.moveS")
   
   ------------- SE Button ------------------------------------
@@ -2124,7 +2716,7 @@ function FEDUI.buildMovementButtons()
     FEDUI.cardinalBox
   )
   
-  FEDUI.btnSE:setStyleSheet(buttonCSS)
+  FEDUI.btnSE:setStyleSheet(FEDUI.style.buttonCSS)
   FEDUI.btnSE:setClickCallback("FEDUI.moveSE")
   
   ------------- UP/DOWN Container ----------------------------
@@ -2152,7 +2744,7 @@ function FEDUI.buildMovementButtons()
     FEDUI.verticalBox
   )
   
-  FEDUI.btnUp:setStyleSheet(buttonCSS)
+  FEDUI.btnUp:setStyleSheet(FEDUI.style.buttonCSS)
   FEDUI.btnUp:setClickCallback("FEDUI.moveUp")
   
   ------------- DOWN Button ----------------------------------
@@ -2168,7 +2760,7 @@ function FEDUI.buildMovementButtons()
     FEDUI.verticalBox
   )
   
-  FEDUI.btnDown:setStyleSheet(buttonCSS)
+  FEDUI.btnDown:setStyleSheet(FEDUI.style.buttonCSS)
   FEDUI.btnDown:setClickCallback("FEDUI.moveDown")
   
   ------------- Show/Hide Button -----------------------------
@@ -2184,7 +2776,7 @@ function FEDUI.buildMovementButtons()
     FEDUI.mapCommandsContainer
   )
   
-  FEDUI.btnShowHide:setStyleSheet(toggleButtonCSS)
+  FEDUI.btnShowHide:setStyleSheet(FEDUI.style.toggleButtonCSS)
   FEDUI.btnShowHide:setClickCallback("FEDUI.toggleMovementButtons")
   
   ------------- Buy Fuel Button ------------------------------
@@ -2200,104 +2792,10 @@ function FEDUI.buildMovementButtons()
     FEDUI.mapCommandsContainer
   )
   
-  FEDUI.btnFuel:setStyleSheet(buttonCSS)
+  FEDUI.btnFuel:setStyleSheet(FEDUI.style.buttonCSS)
   FEDUI.btnFuel:setClickCallback("FEDUI.buyFuel")
   
-  ------------- Work Button --------------------------------
-  FEDUI.btnWork = Geyser.Label:new(
-    {
-      name    = "FEDUI.btnWork",
-      --x       = "100%+160px",
-      --y       = 127,
-      --width   = 25,
-      --height  = 20,
-      message = "&lt;center&gt;W&lt;/center&gt;"
-    },
-    FEDUI.haulingButtonBar
-  )
-  
-  FEDUI.btnWork:setStyleSheet(buttonCSS)
-  FEDUI.btnWork:setClickCallback("FEDUI.work")
-  
-  ------------- Collect Button -------------------------------
-  FEDUI.btnCollect = Geyser.Label:new(
-    {
-      name    = "FEDUI.btnCollect",
-      --x       = "100%+187px",
-      --y       = 127,
-      --width   = 25,
-      --height  = 20,
-      message = "&lt;center&gt;C&lt;/center&gt;"
-    },
-    FEDUI.haulingButtonBar
-  )
-  
-  FEDUI.btnCollect:setStyleSheet(buttonCSS)
-  FEDUI.btnCollect:setClickCallback("FEDUI.collect")
-
-  ------------- Deliver Button -------------------------------
-  FEDUI.btnDeliver = Geyser.Label:new(
-    {
-      name    = "FEDUI.btnDeliver",
-      --x       = "100%+214px",
-      --y       = 127,
-      --width   = 25,
-      --height  = 20,
-      message = "&lt;center&gt;D&lt;/center&gt;"
-    },
-    FEDUI.haulingButtonBar
-  )
-  FEDUI.btnDeliver:setStyleSheet(buttonCSS)
-  FEDUI.btnDeliver:setClickCallback("FEDUI.deliver")
-
-  ------------- Check Price Commodity Dropdown ---------------
-  FEDUI.cPriceDropDown = Geyser.Label:new(
-    {
-      name   = "FEDUI.cPriceDropDown",
-      message = "&lt;center&gt;Select Commodity ▼&lt;/center&gt;",
-    },
-    FEDUI.tradingButtonBar
-  )
-  FEDUI.cPriceDropDown:setStyleSheet(buttonCSS)
-  FEDUI.cPriceDropDown:setClickCallback("FEDUI.showCommodityMenu")
-
-  FEDUI.btnCPrice = Geyser.Label:new(
-    {
-      name    = "FEDUI.btnCPrice",
-      width   = "30%",
-      height  = "100%",
-      message = "&lt;center&gt;CP&lt;/center&gt;",
-    },
-    FEDUI.tradingButtonBar
-  )
-  FEDUI.btnCPrice:setStyleSheet(buttonCSS)
-  FEDUI.btnCPrice:setClickCallback("FEDUI.executeCPrice")
-
-  FEDUI.btnCartelToggle = Geyser.Label:new(
-    {
-      name    = "FEDUI.btnCartelToggle",
-      message = "&lt;center&gt;☑ Cartel&lt;/center&gt;",
-    },
-    FEDUI.tradingButtonBar
-  )
-  FEDUI.btnCartelToggle:setStyleSheet(buttonCSS)
-  FEDUI.btnCartelToggle:setClickCallback("FEDUI.toggleCartel")
-
-  -- Initialize trading state
-  FEDUI.trading = {
-    selectedCommodity = nil,
-    useCartel         = true
-  }
-
-  -- Best Profit button
-  FEDUI.btnBestProfit = Geyser.Label:new({
-    name = "FEDUI.btnBestProfit",
-    message = "&lt;center&gt;Find Best&lt;/center&gt;",
-  }, FEDUI.tradingButtonBar)
-  FEDUI.btnBestProfit:setStyleSheet(buttonCSS)
-  FEDUI.btnBestProfit:setClickCallback("FEDUI.findBestProfit")
-
-  ------------- Score Button -------------------------------
+ ------------- Score Button -------------------------------
   FEDUI.btnScore = Geyser.Label:new(
     {
       name    = "FEDUI.btnScore",
@@ -2310,7 +2808,7 @@ function FEDUI.buildMovementButtons()
     FEDUI.mapCommandsContainer
   )
   
-  FEDUI.btnScore:setStyleSheet(buttonCSS)
+  FEDUI.btnScore:setStyleSheet(FEDUI.style.buttonCSS)
   FEDUI.btnScore:setClickCallback("FEDUI.score")
 
   ------------- Status Button -------------------------------
@@ -2326,7 +2824,7 @@ function FEDUI.buildMovementButtons()
     FEDUI.mapCommandsContainer
   )
   
-  FEDUI.btnStatus:setStyleSheet(buttonCSS)
+  FEDUI.btnStatus:setStyleSheet(FEDUI.style.buttonCSS)
   FEDUI.btnStatus:setClickCallback("FEDUI.status")
 
   -------------- Board Button --------------------------------
@@ -2342,7 +2840,7 @@ function FEDUI.buildMovementButtons()
     FEDUI.mapCommandsContainer
   )
   
-  FEDUI.btnBoard:setStyleSheet(buttonCSS)
+  FEDUI.btnBoard:setStyleSheet(FEDUI.style.buttonCSS)
   FEDUI.btnBoard:setClickCallback("FEDUI.board")
   
   -- Store button and action references for easy access
@@ -2361,27 +2859,6 @@ function FEDUI.buildMovementButtons()
     out    = { button = FEDUI.btnOut,   action = "FEDUI.moveOut"  },
     board  = { button = FEDUI.btnBoard, action = "FEDUI.board"    },
   }
-  
-  FEDUI.movement.buttonCSS   = buttonCSS
-  FEDUI.movement.disabledCSS = disabledButtonCSS
-  
-end
-
-function FEDUI.showCommodityMenu()
-  -- Create a scrollable menu (Mudlet's context menu)
-  local menu = {}
-  
-  for commodity,price in ipairs(FEDUI.CommoditiesBasePrice) do
-    table.insert(menu, commodity)
-  end
-  
-  -- Show menu at button position
-  local selected = showMenu("Select Commodity", menu)
-  
-  if selected then
-    FEDUI.commerce.selectedCommodity = FEDUI.commerce.commodities[selected]
-    FEDUI.btnCommodity:echo("&lt;center&gt;" .. FEDUI.commerce.selectedCommodity .. " ▼&lt;/center&gt;")
-  end
 end
 
 -- Toggle Movement Buttons Visibility
@@ -2393,9 +2870,6 @@ function FEDUI.toggleMovementButtons()
     FEDUI.btnShowHide:echo("&lt;center&gt;Show Buttons&lt;/center&gt;")
     FEDUI.btnBoard:hide()
     FEDUI.btnFuel:hide()
-    FEDUI.btnWork:hide()
-    FEDUI.btnCollect:hide()
-    FEDUI.btnDeliver:hide()
     FEDUI.btnScore:hide()
     FEDUI.btnStatus:hide()
     FEDUI.movement.visible = false
@@ -2406,29 +2880,15 @@ function FEDUI.toggleMovementButtons()
     FEDUI.btnShowHide:echo("&lt;center&gt;Hide Buttons&lt;/center&gt;")
     FEDUI.btnBoard:show()
     FEDUI.btnFuel:show()
-    FEDUI.btnWork:show()
-    FEDUI.btnCollect:show()
-    FEDUI.btnDeliver:show()
     FEDUI.btnScore:show()
     FEDUI.btnStatus:show()
     FEDUI.movement.visible = true
   end
 end
 
-function table.contains(table, element)
-  for _, value in pairs(table) do
-    if value == element then
-      return true
-    end
-  end
-  return false
-end
-
--- Register GMCP handler
-function FEDUI.registerGMCPHandlers()
+function FEDUI.roomInfoEventHandler()
   if FEDUI.gmcpRoomHandler then killAnonymousEventHandler(FEDUI.gmcpRoomHandler) end
-  
-  FEDUI.gmcpRoomHandler = registerAnonymousEventHandler("gmcp.room.info", "FEDUI.onGMCPRoomInfo")
+  FEDUI.gmcpRoomHandler = registerAnonymousEventHandler("gmcp.room.info", FEDUI.onGMCPRoomInfo)
 end
 
 -- Run on every update to GMCP room info
@@ -2441,29 +2901,28 @@ function FEDUI.onGMCPRoomInfo()
   end
 
   -- Detect shuttlepad or orbit and add board to valid exits
-  if table.contains(gmcp.room.info.flags, "shuttlepad") or table.contains(gmcp.room.info.flags, "orbit") or gmcp.room.info.orbit then table.insert(exits, "board") end
+  if FEDUI.tableContains(gmcp.room.info.flags, "shuttlepad") or FEDUI.tableContains(gmcp.room.info.flags, "orbit") or gmcp.room.info.orbit then table.insert(exits, "board") end
 
   for dir, dirData in pairs(FEDUI.movement.directions) do
-    if table.contains(exits, dir) then
-      dirData.button:setStyleSheet(FEDUI.movement.buttonCSS)
+    if FEDUI.tableContains(exits, dir) then
+      dirData.button:setStyleSheet(FEDUI.style.buttonCSS)
       dirData.button:setClickCallback(dirData.action)
     else
-      dirData.button:setStyleSheet(FEDUI.movement.disabledCSS)
+      dirData.button:setStyleSheet(FEDUI.style.disabledButtonCSS)
       dirData.button:setClickCallback(function() end)
     end
   end
   
   -- grey out buy fuel if in space
-  if table.contains(gmcp.room.info.flags, "space") then
-    FEDUI.btnFuel:setStyleSheet(FEDUI.movement.disabledCSS)
+  if FEDUI.tableContains(gmcp.room.info.flags, "space") then
+    FEDUI.btnFuel:setStyleSheet(FEDUI.style.disabledButtonCSS)
     FEDUI.btnFuel:setClickCallback(function() end)
   else
-    FEDUI.btnFuel:setStyleSheet(FEDUI.movement.buttonCSS)
+    FEDUI.btnFuel:setStyleSheet(FEDUI.style.buttonCSS)
     FEDUI.btnFuel:setClickCallback("FEDUI.buyFuel")
   end
 end
 
-------------- Commands ---------------------------------------
 function FEDUI.moveN()
   send("n")
 end
@@ -2524,6 +2983,110 @@ function FEDUI.buyFuel()
   send("buy fuel")
 end
 
+function FEDUI.score()
+  send("score")
+end
+
+function FEDUI.status()
+  send("status")
+end</script>
+						<eventHandlerList />
+					</Script>
+					<Script isActive="yes" isFolder="no">
+						<name>FEDUI.cargo</name>
+						<packageName></packageName>
+						<script>--echoes cargo information to the cargo console
+function FEDUI.cargo()
+  local cargo = gmcp.char.ship.cargo --this is a table, and possibly a table of tables
+
+  if cargo then
+    clearWindow("FEDUI.cargoWindow") --reset the window, no need to have old cargo sticking around
+
+    FEDUI.cargoWindow:cecho("&lt;b&gt;Current Cargo:&lt;/b&gt;\n")
+
+    for key, value in pairs(cargo) do
+      FEDUI.cargoWindow:cecho("&lt;b&gt;"..value.commodity) --name of the commodity
+      FEDUI.cargoWindow:cecho("&lt;/b&gt; at ")
+      FEDUI.cargoWindow:echo(value.cost) --how much you paid for it
+      FEDUI.cargoWindow:echo("/")
+      FEDUI.cargoWindow:echo(value.base) --default price of commodity
+
+      if value.base-value.cost &gt;=0 then
+        FEDUI.cargoWindow:cecho(" (&lt;green&gt;+"..value.base-value.cost)
+      else
+        FEDUI.cargoWindow:cecho(" (&lt;red&gt;-"..value.base-value.cost)
+      end
+
+      FEDUI.cargoWindow:cecho("&lt;reset&gt;) from ")
+      FEDUI.cargoWindow:cecho("&lt;b&gt;"..value.origin) --what planet you bought it from
+      FEDUI.cargoWindow:cecho("&lt;/b&gt;\n")
+    end
+
+    FEDUI.cargoWindow:echo("\n")
+  end
+end
+
+--cargo table contents:
+  --base = [number] --this the commodity's default price
+  --commodity = [string] --this is the name of the commodity
+  --cost = [number] --this is how much you paid for the commodity
+  --origin = [string] --this is where the commodity came from</script>
+						<eventHandlerList>
+							<string>gmcp.char.ship</string>
+						</eventHandlerList>
+					</Script>
+					<Script isActive="yes" isFolder="no">
+						<name>hauling</name>
+						<packageName></packageName>
+						<script>function FEDUI.haulingUI()
+  ------------- Work Button --------------------------------
+  FEDUI.btnWork = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnWork",
+      --x       = "100%+160px",
+      --y       = 127,
+      --width   = 25,
+      --height  = 20,
+      message = "&lt;center&gt;W&lt;/center&gt;"
+    },
+    FEDUI.haulingButtonBar
+  )
+  
+  FEDUI.btnWork:setStyleSheet(FEDUI.style.buttonCSS)
+  FEDUI.btnWork:setClickCallback("FEDUI.work")
+  
+  ------------- Collect Button -------------------------------
+  FEDUI.btnCollect = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnCollect",
+      --x       = "100%+187px",
+      --y       = 127,
+      --width   = 25,
+      --height  = 20,
+      message = "&lt;center&gt;C&lt;/center&gt;"
+    },
+    FEDUI.haulingButtonBar
+  )
+  
+  FEDUI.btnCollect:setStyleSheet(FEDUI.style.buttonCSS)
+  FEDUI.btnCollect:setClickCallback("FEDUI.collect")
+
+  ------------- Deliver Button -------------------------------
+  FEDUI.btnDeliver = Geyser.Label:new(
+    {
+      name    = "FEDUI.btnDeliver",
+      --x       = "100%+214px",
+      --y       = 127,
+      --width   = 25,
+      --height  = 20,
+      message = "&lt;center&gt;D&lt;/center&gt;"
+    },
+    FEDUI.haulingButtonBar
+  )
+  FEDUI.btnDeliver:setStyleSheet(FEDUI.style.buttonCSS)
+  FEDUI.btnDeliver:setClickCallback("FEDUI.deliver")
+ end
+ 
 function FEDUI.work()
   send("work")
 end
@@ -2534,14 +3097,71 @@ end
 
 function FEDUI.deliver()
   send("deliver")
-end
+end</script>
+						<eventHandlerList />
+					</Script>
+					<Script isActive="yes" isFolder="no">
+						<name>trading</name>
+						<packageName></packageName>
+						<script>function FEDUI.tradingUI()
+  ------------- Check Price Commodity Dropdown ---------------
+  FEDUI.cPriceDropDown = Geyser.Label:new(
+    {
+      name   = "FEDUI.cPriceDropDown",
+      message = "&lt;center&gt;Select Commodity ▼&lt;/center&gt;",
+    },
+    FEDUI.tradingButtonBar
+  )
+  FEDUI.cPriceDropDown:setStyleSheet(FEDUI.style.buttonCSS)
+  FEDUI.cPriceDropDown:setClickCallback("FEDUI.showCommodityMenu")
 
-function FEDUI.score()
-  send("score")
-end
+  FEDUI.cPriceButton = Geyser.Label:new(
+    {
+      name    = "FEDUI.cPriceButton",
+      width   = "30%",
+      height  = "100%",
+      message = "&lt;center&gt;CP&lt;/center&gt;",
+    },
+    FEDUI.tradingButtonBar
+  )
+  FEDUI.cPriceButton:setStyleSheet(FEDUI.style.buttonCSS)
+  FEDUI.cPriceButton:setClickCallback("FEDUI.executeCPrice")
 
-function FEDUI.status()
-  send("status")
+  FEDUI.cartelToggleButton = Geyser.Label:new(
+    {
+      name    = "FEDUI.cartelToggleButton",
+      message = "&lt;center&gt;☑ Cartel&lt;/center&gt;",
+    },
+    FEDUI.tradingButtonBar
+  )
+  FEDUI.cartelToggleButton:setStyleSheet(FEDUI.style.buttonCSS)
+  FEDUI.cartelToggleButton:setClickCallback("FEDUI.toggleCartel")
+
+  -- Initialize trading state
+  FEDUI.trading = {
+    selectedCommodity = nil,
+    useCartel         = true,
+    -- Initialize profit search state
+    profitSearch      = {
+      active              = false,
+      commoditiesToSearch = {},
+      currentIndex        = 1,
+      results             = {},
+      bestCommodity       = nil,
+      bestProfit          = -math.huge,
+    }
+  }
+
+  -- Best Profit button
+  FEDUI.bestProfitButton = Geyser.Label:new(
+    {
+      name    = "FEDUI.bestProfitButton",
+      message = "&lt;center&gt;Find Best&lt;/center&gt;",
+    },
+    FEDUI.tradingButtonBar
+  )
+  FEDUI.bestProfitButton:setStyleSheet(FEDUI.style.buttonCSS)
+  FEDUI.bestProfitButton:setClickCallback("FEDUI.findBestProfit")
 end
 
 function FEDUI.showCommodityMenu()
@@ -2564,21 +3184,26 @@ function FEDUI.showCommodityMenu()
   )
   
   -- Use MiniConsole for scrollable list instead
-  local commodityBox = Geyser.ScrollBox:new({
-    name = "commodityBox",
-    x = 0,
-    y = 0,
-    width = "100%",
-    height = "100%",
-    fontSize = 10,
-    backgroundColor = "black",
-  }, FEDUI.commodityPopup)
+  local commodityBox = Geyser.ScrollBox:new(
+    {
+      name            = "commodityBox",
+      x               = 0,
+      y               = 0,
+      width           = "100%",
+      height          = "100%",
+      fontSize        = 10,
+      backgroundColor = "black",
+    },
+    FEDUI.commodityPopup
+  )
 
   -- Convert to sorted array
   local commodityList = {}
-  for commodity, price in pairs(FEDUI.CommoditiesBasePrice) do
+
+  for commodity, price in pairs(FEDUI.commoditiesBasePrice) do
     table.insert(commodityList, {name = commodity, price = price})
   end
+
   table.sort(commodityList, function(a, b) return a.name &lt; b.name end)
   
   local rowHeight = 24
@@ -2588,16 +3213,19 @@ function FEDUI.showCommodityMenu()
   for i, item in ipairs(commodityList) do
     local labelName = "commod" .. i
   
-    commods[i] = Geyser.Label:new({
-      name   = labelName,
-      x      = 0,
-      y      = yOffset,
-      width  = "100%",
-      height = rowHeight,
-      message = "&lt;center&gt;" .. item.name .. " (" .. item.price .. ")&lt;/center&gt;",
-    }, commodityBox)
+    commods[i] = Geyser.Label:new(
+      {
+        name    = labelName,
+        x       = 0,
+        y       = yOffset,
+        width   = "100%",
+        height  = rowHeight,
+        message = "&lt;center&gt;" .. item.name .. " (" .. item.price .. ")&lt;/center&gt;",
+      },
+      commodityBox
+    )
   
-    commods[i]:setStyleSheet(FEDUI.movement.buttonCSS)
+    commods[i]:setStyleSheet(FEDUI.style.buttonCSS)
   
     commods[i]:setClickCallback(
       function()
@@ -2617,8 +3245,10 @@ end
 
 function FEDUI.toggleCartel()
   FEDUI.trading.useCartel = not FEDUI.trading.useCartel
+
   local checkbox = FEDUI.trading.useCartel and "☑" or "☐"
-  FEDUI.btnCartelToggle:echo("&lt;center&gt;" .. checkbox .. " Cartel&lt;/center&gt;")
+
+  FEDUI.cartelToggleButton:echo("&lt;center&gt;" .. checkbox .. " Cartel&lt;/center&gt;")
 end
 
 function FEDUI.executeCPrice()
@@ -2626,149 +3256,192 @@ function FEDUI.executeCPrice()
     cecho("\n&lt;red&gt;Please select a commodity first!\n")
     return
   end
-  
+
   local cmd = "c price " .. FEDUI.trading.selectedCommodity:lower()
+
   if FEDUI.trading.useCartel then
-    FEDUI.commerce                  = FEDUI.commerce or {}
-    FEDUI.commerce.currentCommodity = FEDUI.trading.selectedCommodity:lower()
-    FEDUI.commerce.data             = {}
-    FEDUI.commerce.lastLineWasPrice = false
+    FEDUI.trading                  = FEDUI.trading or {}
+    FEDUI.trading.currentCommodity = FEDUI.trading.selectedCommodity:lower()
+    FEDUI.trading.data             = {}
+    FEDUI.trading.lastLineWasPrice = false
     FEDUI.tradingWindow:clear()
     cmd = cmd .. " cartel"
   end
+
   send(cmd)
-end</script>
-					<eventHandlerList />
-				</Script>
-				<Script isActive="yes" isFolder="no">
-					<name>printStats</name>
-					<packageName></packageName>
-					<script>--takes important character and ship stats, prints them to the labels at the top of the screen
-
-if magicCashNumbers == nil then
-  magicCashNumbers = {
-    ["Commander"] = 250000,
-    ["Captain"] = 400000,
-    ["Adventurer"] = 600000,
-    ["Adventuress"] = 600000,
-    ["Merchant"] = 7500000,
-    ["Trader"] = 12500000,
-    ["Industrialist"] = 17500000,
-    ["Manufacturer"] = 22500000,
-    ["Financier"] = 27500000,
-  }--magic numbers taken from the documentation (https://federation2.com/guide/#sec-220.10)
-  --magic numbers confirmed by in-game 'help tax' document
-  --everyone over Financier has no cap (but may have a cap of 1,000,000,000?)
-  --planets and companies do have a cap of 1,000,000,000 but we don't track this so it's fine
-  --businesses have a cap of 100,000,000 but we also don't track this so it's still fine
 end
 
---called by 'cash = convert_value(vitals.cash)'
---called by 'groatsMax = convert_value(magicCashNumbers[rank])'
-local function convert_value(amount) --format very long numbers
-  local formatted = amount
-  if tonumber(formatted) == nil then return nil end
-  if tonumber(formatted) &lt;= 1000000 then --we are below or just equal to a meg
-    while true do
-      formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", '%1,%2')
-      if (k==0) then
-        break
-      end
-    end
-  else --we are above a meg
-    --divide by 100,000 so the decimal is shifted
-    --floor the result to throw away everything after the decimal
-    --divide by 10 to put the decimal in the right spot
-    formatted = math.floor(tonumber(formatted)/100000) / 10 .. " m"
-  end
-  return formatted
-end
-
-local function colorPercent(numCur, numMax) --colorize based on a percentage
-  --0 is ansiRed, 5 is ansiYellow, 9 is ansiGreen, 10 is default white
-  --unfortunately mudlet's color table doesn't have a good gradiant 
-  --so hexcodes from a random online gradiant tool it is
-  local colorGrad = {[0] = "#800000", [1] = "#801a00", [2] = "#803400", [3] = "#804e00", [4] = "#806800", 
-    [5] = "#808000", [6] = "#668000", [7] = "#4c8000", [8] = "#328000", [9] = "#008000", [10] = "#FFFFFF"
+function FEDUI.findBestProfit()
+  -- Clear previous results
+  FEDUI.trading.profitSearch = {
+    active              = true,
+    commoditiesToSearch = {},
+    currentIndex        = 1,
+    results             = {},
+    bestCommodity       = nil,
+    bestProfit          = -math.huge,
+    totalCount          = 0
   }
-  --divide the current value by the max value to get a percentage
-  --then multiply it by ten to shift the decimal
-  --then floor it to chop off everything after the decimal
-  --should result in a number between 0 and 10
-  percent = math.floor((tonumber(numCur) / tonumber(numMax)) * 10)
-  color = colorGrad[percent]
-  return color
+  
+  -- Build list of all commodities
+  for commodity, _ in pairs(FEDUI.commoditiesBasePrice) do
+    table.insert(FEDUI.trading.profitSearch.commoditiesToSearch, commodity)
+  end
+  table.sort(FEDUI.trading.profitSearch.commoditiesToSearch, function(a, b) return a &lt; b end)
+  
+  FEDUI.trading.profitSearch.totalCount = #FEDUI.trading.profitSearch.commoditiesToSearch
+  
+  FEDUI.tradingWindow:clear()
+  FEDUI.tradingWindow:cecho("&lt;yellow&gt;Searching " .. #FEDUI.trading.profitSearch.commoditiesToSearch .. " commodities for best profit...\n\n")
+  
+   -- Create progress bar anchored to bottom of main window, between left and right frames
+  if not FEDUI.profitProgressBar then
+    FEDUI.profitProgressBar = Geyser.Gauge:new({
+      name = "FEDUI.profitProgressBar",
+      x = "16.5%",
+      y = "-30px",
+      width = "61%",
+      height = "25px"
+    })
+    FEDUI.profitProgressBar:setFgColor("red")
+    FEDUI.profitProgressBar:setColor(40, 40, 40)
+  end
+  
+  FEDUI.profitProgressBar:setValue(1, FEDUI.trading.profitSearch.totalCount,"Scanning commodities... 1/" .. FEDUI.trading.profitSearch.totalCount)
+  --FEDUI.profitProgressBar:setFrontLabel("Scanning commodities... 1/" .. FEDUI.trading.profitSearch.totalCount)
+  FEDUI.profitProgressBar:show()
+  FEDUI.profitProgressBar:raise()
+
+  -- Start searching
+  FEDUI.searchNextCommodity()
 end
 
---Tracking: Rank, Cargo Space, Fuel, Stamina, Money, Slithies
-
-function printStats()
-  local vitals = (gmcp.char and gmcp.char.vitals) or {}
-  local ship = (gmcp.char and gmcp.char.ship) or {}
-
-  local rank    = vitals.rank or "-"
-  local holdCur = (ship.hold and ship.hold.cur) or "-"
-  local holdMax = (ship.hold and ship.hold.max) or "-"
-  local fuelCur = (ship.fuel and ship.fuel.cur) or "-"
-  local fuelMax = (ship.fuel and ship.fuel.max) or "-"
-  local stamCur = (vitals.stamina and vitals.stamina.cur) or "-"
-  local stamMax = (vitals.stamina and vitals.stamina.max) or "-"
-  local cash    = convert_value(vitals.cash) or "-"
-  local slith   = vitals.slithies or "-"
-  local groatsMax = convert_value(magicCashNumbers[rank]) or "-"
-
-  FEDUI.Label1:echo("Rank: ".. [[&lt;b&gt;]] .. rank .. [[&lt;/b&gt;]])
-  if tonumber(holdCur) then FEDUI.Label2:echo("Hold: " .. [[&lt;b&gt;&lt;font color=]]..colorPercent(holdCur,holdMax)..[[&gt;]] .. holdCur .. [[&lt;/font&gt;&lt;/b&gt;]] .. "/" .. holdMax) end
-  if tonumber(fuelCur) then FEDUI.Label3:echo("Fuel: " .. [[&lt;b&gt;&lt;font color=]]..colorPercent(fuelCur,fuelMax)..[[&gt;]] .. fuelCur .. [[&lt;/font&gt;&lt;/b&gt;]] .. "/" .. fuelMax) end
-  if tonumber(stamCur) then FEDUI.Label4:echo("Stamina: " .. [[&lt;b&gt;&lt;font color=]]..colorPercent(stamCur,stamMax)..[[&gt;]] .. stamCur .. [[&lt;/font&gt;&lt;/b&gt;]].. "/" .. stamMax) end
-  if groatsMax == "-" then
-    FEDUI.Label5:echo("Groats: " .. [[&lt;b&gt;]] .. cash .. [[&lt;/b&gt;]])
-  else
-    FEDUI.Label5:echo("Groats: " .. [[&lt;b&gt;]] .. cash .. [[&lt;/b&gt;]] .. "/" .. groatsMax)
+function FEDUI.searchNextCommodity()
+  if not FEDUI.trading.profitSearch.active then return end
+  
+  local commodity = FEDUI.trading.profitSearch.commoditiesToSearch[FEDUI.trading.profitSearch.currentIndex]
+  
+  if not commodity then
+    -- Done searching, display results
+    FEDUI.displayBestProfit()
+    return
   end
-  FEDUI.Label6:echo("Slithies: " .. [[&lt;b&gt;]] .. slith .. [[&lt;/b&gt;]])
-end</script>
-					<eventHandlerList>
-						<string>gmcp.char</string>
-					</eventHandlerList>
-				</Script>
-				<Script isActive="yes" isFolder="no">
-					<name>echoCargo</name>
-					<packageName></packageName>
-					<script>--echoes cargo information to the cargo console
-function echoCargo()
-  local cargo = gmcp.char.ship.cargo --this is a table, and possibly a table of tables
-  if cargo then
-    clearWindow("FEDUI.cargoWindow") --reset the window, no need to have old cargo sticking around
-    FEDUI.cargoWindow:cecho("&lt;b&gt;Current Cargo:&lt;/b&gt;\n")
-    for key, value in pairs(cargo) do
-      FEDUI.cargoWindow:cecho("&lt;b&gt;"..value.commodity) --name of the commodity
-      FEDUI.cargoWindow:cecho("&lt;/b&gt; at ")
-      FEDUI.cargoWindow:echo(value.cost) --how much you paid for it
-      FEDUI.cargoWindow:echo("/")
-      FEDUI.cargoWindow:echo(value.base) --default price of commodity
-      if value.base-value.cost &gt;=0 then
-        FEDUI.cargoWindow:cecho(" (&lt;green&gt;+"..value.base-value.cost)
-      else
-        FEDUI.cargoWindow:cecho(" (&lt;red&gt;-"..value.base-value.cost)
-      end
-      FEDUI.cargoWindow:cecho("&lt;reset&gt;) from ")
-      FEDUI.cargoWindow:cecho("&lt;b&gt;"..value.origin) --what planet you bought it from
-      FEDUI.cargoWindow:cecho("&lt;/b&gt;\n")
+  
+  -- Clear commerce data for this search
+  FEDUI.trading.data = {}
+  FEDUI.trading.currentCommodity = commodity
+  FEDUI.trading.lastLineWasPrice = false
+  
+  -- Send the search command
+  send("c price " .. commodity:lower() .. " cartel", false)
+end
+
+function FEDUI.processProfitSearchResults()
+  -- Calculate profit for current commodity
+  local bestBuy = math.huge
+  local bestSell = -1
+  
+  for _, item in ipairs(FEDUI.trading.data) do
+    if item.action == "selling" then
+      if item.price &lt; bestBuy then bestBuy = item.price end
+    elseif item.action == "buying" then
+      if item.price &gt; bestSell then bestSell = item.price end
     end
-    FEDUI.cargoWindow:echo("\n")
   end
+  
+  local profit = (bestBuy ~= math.huge and bestSell ~= -1) and (bestSell - bestBuy) or -math.huge
+  
+  local commodity = FEDUI.trading.currentCommodity
+  
+  -- Store result
+  table.insert(
+    FEDUI.trading.profitSearch.results,
+    {
+      commodity = commodity,
+      profit    = profit,
+      bestBuy   = bestBuy,
+      bestSell  = bestSell
+    }
+  )
+  
+  -- Update if this is the best
+  if profit &gt; FEDUI.trading.profitSearch.bestProfit then
+    FEDUI.trading.profitSearch.bestProfit    = profit
+    FEDUI.trading.profitSearch.bestCommodity = commodity
+  end
+  
+  -- Update progress bar BEFORE incrementing currentIndex
+  if FEDUI.profitProgressBar then
+    local current = FEDUI.trading.profitSearch.currentIndex
+    local total   = FEDUI.trading.profitSearch.totalCount
+    
+    FEDUI.profitProgressBar:setValue(current, total,"Scanning commodities... " .. current .. "/" .. total)
+    --FEDUI.profitProgressBar:setFrontLabel("Scanning commodities... " .. current .. "/" .. total)
+  end
+
+  -- Update display
+  FEDUI.tradingWindow:cecho(string.format(
+    "&lt;%s&gt;%-20s: %+4dig/ton&lt;reset&gt;\n",
+    profit &gt; 0 and "green" or "red",
+    commodity,
+    profit
+  ))
+  
+  -- Move to next
+  FEDUI.trading.profitSearch.currentIndex = FEDUI.trading.profitSearch.currentIndex + 1
+  
+  -- Small delay before next search to avoid flooding
+  tempTimer(0.5, function() FEDUI.searchNextCommodity() end)
 end
 
---cargo table contents:
-  --base = [number] --this the commodity's default price
-  --commodity = [string] --this is the name of the commodity
-  --cost = [number] --this is how much you paid for the commodity
-  --origin = [string] --this is where the commodity came from</script>
-					<eventHandlerList>
-						<string>gmcp.char.ship</string>
-					</eventHandlerList>
-				</Script>
+function FEDUI.displayBestProfit()
+  FEDUI.trading.profitSearch.active = false
+  FEDUI.profitProgressBar:hide()
+
+  -- Sort results by profit
+  table.sort(FEDUI.trading.profitSearch.results, function(a, b)
+    return a.profit &gt; b.profit
+  end)
+  
+  FEDUI.tradingWindow:cecho("\n&lt;white&gt;==========================================\n")
+  FEDUI.tradingWindow:cecho("&lt;yellow&gt;BEST PROFIT: &lt;reset&gt;")
+  
+  if FEDUI.trading.profitSearch.bestCommodity then
+    local best = FEDUI.trading.profitSearch.results[1]
+
+    FEDUI.tradingWindow:cechoLink(
+      "&lt;green&gt;&lt;b&gt;" .. best.commodity .. "&lt;/b&gt;&lt;reset&gt;",
+      function()
+        FEDUI.trading.selectedCommodity = best.commodity
+        FEDUI.cPriceDropDown:echo("&lt;center&gt;" .. best.commodity .. " ▼&lt;/center&gt;")
+        send("c price " .. best.commodity:lower() .. " cartel")
+      end,
+      "Search " .. best.commodity,
+      true
+    )
+    FEDUI.tradingWindow:cecho(string.format(
+      " | &lt;green&gt;%dig/ton profit&lt;reset&gt;\n",
+      best.profit
+    ))
+    FEDUI.tradingWindow:cecho(string.format(
+      "Buy at %dig, Sell at %dig\n",
+      best.bestBuy,
+      best.bestSell
+    ))
+    
+    -- Auto-select it
+    FEDUI.trading.selectedCommodity = best.commodity
+    FEDUI.cPriceDropDown:echo("&lt;center&gt;" .. best.commodity .. " ▼&lt;/center&gt;")
+  else
+    FEDUI.tradingWindow:cecho("&lt;red&gt;No profitable commodities found&lt;reset&gt;\n")
+  end
+  
+  FEDUI.tradingWindow:cecho("&lt;white&gt;==========================================\n\n")
+  FEDUI.tradingWindow:cecho("&lt;dim_grey&gt;Click commodity name to view full cartel prices&lt;reset&gt;\n")
+end</script>
+						<eventHandlerList />
+					</Script>
+				</ScriptGroup>
 				<ScriptGroup isActive="yes" isFolder="yes">
 					<name>echoChatIn</name>
 					<packageName></packageName>
@@ -2806,567 +3479,6 @@ end</script>
 						</eventHandlerList>
 					</Script>
 				</ScriptGroup>
-				<ScriptGroup isActive="yes" isFolder="yes">
-					<name>fedmap</name>
-					<packageName></packageName>
-					<script>fedmap = fedmap or {}</script>
-					<eventHandlerList />
-					<Script isActive="yes" isFolder="no">
-						<name>Fed2Mapper</name>
-						<packageName></packageName>
-						<script>-----[ tell mudlet that we're a legit mapper ]-----
-mudlet = mudlet or {}
-mudlet.mapper_script = true
-
---===begin useful mapping functions===--
-
------[ custom env colors ]-----
-setCustomEnvColor(33, 255, 192, 203, 255) --mudlet's 'pink', used for auto-generated unexplored rooms
-
---mapper default color reference--
---257 - dark red    --265 - red
---258 - dark green	--266 - green
---259 - dark yellow	--267 - yellow
---260 - dark blue	  --268 - blue
---261 - dark pink	  --269 - pink
---262 - dark cyan	  --270 - cyan
---263 - light grey	--271 - white
---264 - black		    --272 - dark grey
-
-
------[ set room environment ]-----
---set the room color and symbol based on the room's flags
---colors are the mapper defaults, found from getCustomEnvColorTable()
---if the 'link', 'orbit', 'shuttlepad', or 'exchange' flags are found, room is maroon
---having just the 'space' flag or no flags at all results in the room being grey
---rooms with the 'shuttlepad' flag get a star symbol so they're easy to find
---rooms with the 'exchange' flag get 'EX' as a symbol so they're easy to find
---not setting symbols on 'link' or 'orbit' flags because there's too much variety here to hardcode something
-	--end users should be setting their own symbols via alias anyway
-function fedmap.roomColor(roomID)
-  local table = gmcp.room.info.flags
-  if next(table) == nil then --the room's table of flags is empty, this is an ordinary room on a planet
-  	setRoomEnv(roomID, 272)
-    setRoomChar(roomID, "")
-  else
-  	local flags = {}
-  	for key,value in ipairs(table) do        --take the values from the room's table of flags
-  		setRoomUserData(roomID, value, "true")	--put them into the room's user data
-		end
-		if getRoomUserData(roomID, "link") == "true" then --this room lets people jump to different systems
-			--echo("link flag found")
-			setRoomEnv(roomID, 260)
-      setRoomChar(roomID, "")
-		elseif getRoomUserData(roomID, "orbit") == "true" or gmcp.room.info.orbit then --this room lets people board their shuttle to land on the planet
-			--echo("orbit flag found")
-			setRoomEnv(roomID, 257)
-      setRoomChar(roomID, "")
-		elseif getRoomUserData(roomID, "space") == "true" then --this is an ordinary space room with no orbits or system links
-			--echo("space flag found")
-			setRoomEnv(roomID, 272)
-      setRoomChar(roomID, "")
-		elseif getRoomUserData(roomID, "shuttlepad") == "true" then --this room lets people board their shuttle to reach their spaceship
-			--echo("shuttlepad flag found")
-			setRoomEnv(roomID, 257)
-			setRoomChar(roomID, "★")
-		elseif getRoomUserData(roomID, "exchange") == "true" then --this room lets people use the exchange features
-			--echo("exchange flag found")
-			setRoomEnv(roomID, 257)
-			setRoomChar(roomID, "EX")
-		else 							--we have no idea what this room is, panic
-			--echo("other flag found")
-			setRoomEnv(roomID, 259)
-      setRoomChar(roomID, "")
-  	end
-  end
-end
-
------[ create ghost room ]-----
---unexplored rooms are generated for each valid exit, so we have something to hook the exit to
---they're colored a pale pink and identified with a ? so we know they haven't been entered yet
-local function makeGhostRoom(destinationHash, areaID, number) --called by generateExits
-	local ID = createRoomID()          --get the next free room number
-	setRoomIDbyHash(ID, destinationHash) --assign that room number to the destination room's hash 
-	addRoom(ID, areaID)            --create the room using our generated room number
-	local coordX, coordY = fedmap.makeCoords(number)
-	setRoomCoordinates(ID, coordX, coordY, 0)
-	setRoomEnv(ID, 33) --custom env, not one of the mapper defaults
-	setRoomChar(ID, "?")
-end
-
------[ create exits ]-----
---convert each fed room number into a a room hash, check to see if there's a mapper room number associated
---if there is no room already existing with that hash, create one via makeGhostRoom
---once we are assured the room exists, hook an exit to it
-function fedmap.generateExits(areaID, roomID) --called as part of fedmap.makeRoom
-	local exits = gmcp.room.info.exits
-	for dir, number in pairs(exits) do
-		local destinationHash = gmcp.room.info.system .. "." .. gmcp.room.info.area .. "." .. number
-		if getRoomIDbyHash(destinationHash) == -1 then --no room is associated with this hash
-      makeGhostRoom(destinationHash, areaID, number) --let's fix that
-    end
-		setExit(roomID, getRoomIDbyHash(destinationHash), dir)
-	end
-end
-
---===begin core mapping functions===--
-
------[ get area ID ]-----
---this function returns the areaID, adding the area to mudlet's mapper table if necessary
-local function findAreaID(areaname)
-	--areaname is expected to be gmcp.room.info.area
-	local list = getAreaTable() --load mudlet's mapper table
-	local areaID = -1
-	if list[areaname] ~= nil then --not nil, so there is already an area with that name in the mapper table
-		areaID = list[areaname] --get the value indexed to the area's name
-	else --nil result, so the area name is NOT the mapper table and needs to be added
-		areaID = addAreaName(areaname) --add the area to the mapper table, returning the new area ID
-    setMapZoom(6, areaID) --sets the zoom of our new area to something reasonable
-	end			
-	return areaID
-end
-
-
------[ generate room coordinates ]-----
---rooms are built on a grid that is 64 sqares wide and 63 squares tall
---we only need to care about how wide the grid is to get the room coordinates
---calculate their location using the power of MATH
-function fedmap.makeCoords(roomnum)
-	--roomnum is expected to be gmcp.room.info.num
-	local coordX = roomnum % 64 --modulus to get the column
-  --local coordY = roomnum // 64 --floor division to get the row
-  local coordY = math.floor(roomnum / 64) --evidently mudlet has no native floor division
-	--there is no Z coord returned because the underlying grid is flat
-	return coordX, -coordY
-end
---Y is returned inverted because the game's map puts 0,0 at the top left
---and mudlet's map puts 0,0 in the center
---inverting Y syncs everything back up
-
-
------[ create room ]-----
---generates a room if no room exists, and either way centers the map on the current location
---this is the function called when we receive gmcp.room data from the game
-function fedmap.makeRoom()
-	local roomHash = gmcp.room.info.system .. "." .. gmcp.room.info.area .. "." .. gmcp.room.info.num
-	local roomID = getRoomIDbyHash(roomHash)
-	local areaID = findAreaID(gmcp.room.info.area)
-	local coordX, coordY = fedmap.makeCoords(gmcp.room.info.num)
-	
-	if roomID == -1 then -- -1 is returned if no room ID matches the hash
-		roomID = createRoomID() --get the next free room number
-		setRoomIDbyHash(roomID, roomHash) --assign that room number to this room's hash
-		addRoom(roomID, areaID) --create the room using our generated room number
-		setRoomCoordinates(roomID, coordX, coordY, 0) --place the room on the map
-		setRoomName(roomID, gmcp.room.info.name)
-    fedmap.roomColor(roomID)
-    fedmap.generateExits(areaID, roomID)
-  elseif getRoomName(roomID) == "" then --room exists but hasn't had its info set
-		--this existing room already has an ID, hash, and coordinates
-		setRoomName(roomID, gmcp.room.info.name)
-		fedmap.roomColor(roomID)
-		fedmap.generateExits(areaID, roomID)
-	end
-  centerview(roomID)
-end</script>
-						<eventHandlerList />
-					</Script>
-					<Script isActive="yes" isFolder="no">
-						<name>callMapper</name>
-						<packageName></packageName>
-						<script>function callMapper()
-  fedmap.makeRoom()
-end</script>
-						<eventHandlerList>
-							<string>gmcp.room</string>
-						</eventHandlerList>
-					</Script>
-				</ScriptGroup>
-				<Script isActive="yes" isFolder="no">
-					<name>outputCommodities</name>
-					<packageName></packageName>
-					<script>--puts the CommodyTable in the Commodities window, sorted by price
-function FEDUI.outputCommodities()
-  clearWindow("FEDUI.commoditiesWindow")
-
-  local entities = {}
-  for key, value in pairs(FEDUI.CommoditiesBasePrice) do
-    table.insert(entities, {key = key, value = value})
-  end
-  table.sort(entities, function (a,b) return a.value &lt; b.value end)
-  
-  for key, entity in ipairs(entities) do
-    FEDUI.commoditiesWindow:echo(entity.key.." ("..entity.value..")\n")
-  end
-end</script>
-					<eventHandlerList />
-				</Script>
-				<Script isActive="yes" isFolder="no">
-					<name>MagicNumbers</name>
-					<packageName></packageName>
-					<script>--numbers taken from documentation (https://federation2.com/guide/#sec-100.60)
---used with the ExchangeTriggers
-
-FEDUI.CommoditiesBasePrice = {
-  Cereals = 270,
-  Fruit = 420,
-  Furs = 650,
-  Hides = 400,
-  Livestock = 210,
-  Meats = 410,
-  Soya = 230,
-  Spices = 650,
-  Textiles = 300,
-  Woods = 700,
-  Alloys = 180,
-  Clays = 520,
-  Crystals = 650,
-  Gold = 600,
-  Monopoles = 720,
-  Nickel = 370,
-  Petrochemicals = 400,
-  Radioactives = 540,
-  Semiconductors = 350,
-  Xmetals = 480,
-  Explosives = 470,
-  Generators = 670,
-  LanzariK = 700,
-  LubOils = 560,
-  Mechparts = 420,
-  Munitions = 250,
-  Nitros = 230,
-  Pharmaceuticals = 630,
-  Polymers = 200,
-  Propellants = 260,
-  RNA = 380,
-  AntiMatter = 480,
-  Controllers = 710,
-  Droids = 700,
-  Electros = 250,
-  GAsChips = 450,
-  Lasers = 470,
-  NanoFabrics = 850,
-  Nanos = 550,
-  Powerpacks = 680,
-  Synths = 560,
-  Tools = 350,
-  TQuarks = 835,
-  Vidicasters = 380,
-  Weapons = 420,
-  BioChips = 650,
-  BioComponents = 760,
-  Clinics = 450,
-  Laboratories = 470,
-  MicroScalpels = 320,
-  Probes = 510,
-  Proteins = 260,
-  Sensors = 470,
-  ToxicMunchers = 470,
-  Tracers = 600,
-  Artifacts = 730,
-  Firewalls = 690,
-  Games = 210,
-  Holos = 260,
-  Hypnotapes = 430,
-  Katydidics = 610,
-  Libraries = 680,
-  Musiks = 470,
-  Sensamps = 520,
-  Simulations = 310,
-  Studios = 390,
-  Univators = 570,
- }
- 
---certainly there's a better way to do it, but distances manually counted using the map
---(https://federation2.com/guide/#sec-20.10)
---used with CommanderWork triggers
-FEDUI.SolDistances = {
-  BrassCastilo = 5,
-  BrassDoris = 2,
-  BrassEarth = 8,
-  BrassLattice = 4,
-  BrassMagellan = 7,
-  BrassMars = 6,
-  BrassMercury = 8,
-  BrassParadise = 8,
-  BrassPearl = 10,
-  BrassPhobos = 7,
-  BrassRhea = 5,
-  BrassSelena = 9,
-  BrassSilk = 4,
-  BrassSumatra = 4,
-  BrassTitan = 5,
-  BrassVenus = 7,
-  CastilloDoris = 4,
-  CastilloEarth = 3,
-  CastilloLattice = 6,
-  CastilloMagellan = 4,
-  CastilloMars = 2,
-  CastilloMercury = 6,
-  CastilloParadise = 6,
-  CastilloPearl = 8,
-  CastilloPhobos = 2,
-  CastilloRhea = 4,
-  CastilloSelena = 4,
-  CastilloSilk = 5,
-  CastilloSumatra = 2,
-  CastilloTitan = 2,
-  CastilloVenus = 5,
-  DorisEarth = 7,
-  DorisLattice = 3,
-  DorisMagellan = 6,
-  DorisMars = 5,
-  DorisMercury = 7,
-  DorisParadise = 7,
-  DorisPearl = 9,
-  DorisPhobos = 6,
-  DorisRhea = 4,
-  DorisSelena = 8,
-  DorisSilk = 3,
-  DorisSumatra = 3,
-  DorisTitan = 4,
-  DorisVenus = 6,
-  EarthLattice = 9,
-  EarthMagellan = 1,
-  EarthMars = 2,
-  EarthMercury = 3,
-  EarthParadise = 4,
-  EarthPearl = 5,
-  EarthPhobos = 2,
-  EarthRhea = 7,
-  EarthSelena = 1,
-  EarthSilk = 8,
-  EarthSumatra = 4,
-  EarthTitan = 5,
-  EarthVenus = 3,
-  LatticeMagellan = 8,
-  LatticeMars = 7,
-  LatticeMercury = 9,
-  LatticeParadise = 9,
-  LatticePearl = 11,
-  LatticePhobos = 8,
-  LatticeRhea = 6,
-  LatticeSelena = 10,
-  LatticeSilk = 5,
-  LatticeSumatra = 5,
-  LatticeTitan = 6,
-  LatticeVenus = 8,
-  MagellanMars = 2,
-  MagellanMercury = 2,
-  MagellanParadise = 3,
-  MagellanPearl = 4,
-  MagellanPhobos = 3,
-  MagellanRhea = 6,
-  MagellanSelena = 2,
-  MagellanSilk = 7,
-  MagellanSumatra = 3,
-  MagellanTitan = 5,
-  MagellanVenus = 2,
-  MarsMercury = 4,
-  MarsParadise = 4,
-  MarsPearl = 6,
-  MarsPhobos = 1,
-  MarsRhea = 5,
-  MarsSelena = 3,
-  MarsSilk = 6,
-  MarsSumatra = 2,
-  MarsTitan = 3,
-  MarsVenus = 3,
-  MercuryParadise = 4,
-  MercuryPearl = 2,
-  MercuryPhobos = 5,
-  MercuryRhea = 7,
-  MercurySelena = 2,
-  MercurySilk = 8,
-  MercurySumatra = 4,
-  MercuryTitan = 7,
-  MercuryVenus = 3,
-  ParadisePearl = 5,
-  ParadisePhobos = 5,
-  ParadiseRhea = 7,
-  ParadiseSelena = 5,
-  ParadiseSilk = 8,
-  ParadiseSumatra = 4,
-  ParadiseTitan = 7,
-  ParadiseVenus = 1,
-  PearlPhobos = 7,
-  PearlRhea = 9,
-  PearlSelena = 4,
-  PearlSilk = 10,
-  PearlSumatra = 6,
-  PearlTitan = 9,
-  PearlVenus = 4,
-  PhobosRhea = 6,
-  PhobosSelena = 3,
-  PhobosSilk = 7,
-  PhobosSumatra = 3,
-  PhobosTitan = 4,
-  PhobosVenus = 4,
-  RheaSelena = 8,
-  RheaSilk = 5,
-  RheaSumatra = 3,
-  RheaTitan = 2,
-  RheaVenus = 6,
-  SelenaSilk = 9,
-  SelenaSumatra = 5,
-  SelenaTitan = 6,
-  SelenaVenus = 4,
-  SilkSumatra = 4,
-  SilkTitan = 5,
-  SilkVenus = 7,
-  SumatraTitan = 3,
-  SumatraVenus = 3,
-  TitanVenus = 6,
- }</script>
-					<eventHandlerList />
-				</Script>
-				<Script isActive="yes" isFolder="no">
-					<name>cPriceBestProfit</name>
-					<packageName></packageName>
-					<script>-- Initialize profit search state
-FEDUI.profitSearch = {
-  active = false,
-  commoditiesToSearch = {},
-  currentIndex = 1,
-  results = {},
-  bestCommodity = nil,
-  bestProfit = -math.huge
-}
-
-function FEDUI.findBestProfit()
-  -- Clear previous results
-  FEDUI.profitSearch = {
-    active = true,
-    commoditiesToSearch = {},
-    currentIndex = 1,
-    results = {},
-    bestCommodity = nil,
-    bestProfit = -math.huge
-  }
-  
-  -- Build list of all commodities
-  for commodity, _ in pairs(FEDUI.CommoditiesBasePrice) do
-    table.insert(FEDUI.profitSearch.commoditiesToSearch, commodity)
-  end
-  
-  FEDUI.tradingWindow:clear()
-  FEDUI.tradingWindow:cecho("&lt;yellow&gt;Searching " .. #FEDUI.profitSearch.commoditiesToSearch .. " commodities for best profit...\n\n")
-  
-  -- Start searching
-  FEDUI.searchNextCommodity()
-end
-
-function FEDUI.searchNextCommodity()
-  if not FEDUI.profitSearch.active then return end
-  
-  local commodity = FEDUI.profitSearch.commoditiesToSearch[FEDUI.profitSearch.currentIndex]
-  
-  if not commodity then
-    -- Done searching, display results
-    FEDUI.displayBestProfit()
-    return
-  end
-  
-  -- Clear commerce data for this search
-  FEDUI.commerce.data = {}
-  FEDUI.commerce.currentCommodity = commodity
-  FEDUI.commerce.lastLineWasPrice = false
-  
-  -- Send the search command
-  send("c price " .. commodity:lower() .. " cartel", false)
-end
-
-function FEDUI.processProfitSearchResults()
-  -- Calculate profit for current commodity
-  local bestBuy = math.huge
-  local bestSell = -1
-  
-  for _, item in ipairs(FEDUI.commerce.data) do
-    if item.action == "selling" then
-      if item.price &lt; bestBuy then bestBuy = item.price end
-    elseif item.action == "buying" then
-      if item.price &gt; bestSell then bestSell = item.price end
-    end
-  end
-  
-  local profit = (bestBuy ~= math.huge and bestSell ~= -1) and (bestSell - bestBuy) or -math.huge
-  
-  local commodity = FEDUI.commerce.currentCommodity
-  
-  -- Store result
-  table.insert(FEDUI.profitSearch.results, {
-    commodity = commodity,
-    profit = profit,
-    bestBuy = bestBuy,
-    bestSell = bestSell
-  })
-  
-  -- Update if this is the best
-  if profit &gt; FEDUI.profitSearch.bestProfit then
-    FEDUI.profitSearch.bestProfit = profit
-    FEDUI.profitSearch.bestCommodity = commodity
-  end
-  
-  -- Update display
-  FEDUI.tradingWindow:cecho(string.format(
-    "&lt;%s&gt;%-20s: %+4dig/ton&lt;reset&gt;\n",
-    profit &gt; 0 and "green" or "red",
-    commodity,
-    profit
-  ))
-  
-  -- Move to next
-  FEDUI.profitSearch.currentIndex = FEDUI.profitSearch.currentIndex + 1
-  
-  -- Small delay before next search to avoid flooding
-  tempTimer(0.5, function() FEDUI.searchNextCommodity() end)
-end
-
-function FEDUI.displayBestProfit()
-  FEDUI.profitSearch.active = false
-  
-  -- Sort results by profit
-  table.sort(FEDUI.profitSearch.results, function(a, b)
-    return a.profit &gt; b.profit
-  end)
-  
-  FEDUI.tradingWindow:cecho("\n&lt;white&gt;==========================================\n")
-  FEDUI.tradingWindow:cecho("&lt;yellow&gt;BEST PROFIT: &lt;reset&gt;")
-  
-  if FEDUI.profitSearch.bestCommodity then
-    local best = FEDUI.profitSearch.results[1]
-    FEDUI.tradingWindow:cechoLink(
-      "&lt;green&gt;&lt;b&gt;" .. best.commodity .. "&lt;/b&gt;&lt;reset&gt;",
-      function()
-        FEDUI.trading.selectedCommodity = best.commodity
-        FEDUI.cPriceDropDown:echo("&lt;center&gt;" .. best.commodity .. " ▼&lt;/center&gt;")
-        send("c price " .. best.commodity:lower() .. " cartel")
-      end,
-      "Search " .. best.commodity,
-      true
-    )
-    FEDUI.tradingWindow:cecho(string.format(
-      " | &lt;green&gt;%dig/ton profit&lt;reset&gt;\n",
-      best.profit
-    ))
-    FEDUI.tradingWindow:cecho(string.format(
-      "Buy at %dig, Sell at %dig\n",
-      best.bestBuy,
-      best.bestSell
-    ))
-    
-    -- Auto-select it
-    FEDUI.trading.selectedCommodity = best.commodity
-    FEDUI.cPriceDropDown:echo("&lt;center&gt;" .. best.commodity .. " ▼&lt;/center&gt;")
-  else
-    FEDUI.tradingWindow:cecho("&lt;red&gt;No profitable commodities found&lt;reset&gt;\n")
-  end
-  
-  FEDUI.tradingWindow:cecho("&lt;white&gt;==========================================\n\n")
-  FEDUI.tradingWindow:cecho("&lt;dim_grey&gt;Click commodity name to view full cartel prices&lt;reset&gt;\n")
-end</script>
-					<eventHandlerList />
-				</Script>
 			</ScriptGroup>
 		</ScriptGroup>
 	</ScriptPackage>

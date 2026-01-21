@@ -9,7 +9,7 @@
 			<packageName>fed2ui</packageName>
 			<regex></regex>
 			<AliasGroup isActive="yes" isFolder="yes">
-				<name>fedmap</name>
+				<name>map</name>
 				<script></script>
 				<command></command>
 				<packageName></packageName>
@@ -35,10 +35,24 @@ echo("symbol cleared\n")</script>
 				<Alias isActive="yes" isFolder="no">
 					<name>setRoomEnv</name>
 					<script>local mapperColorTable = {
-  ["red"] = 257, ["green"] = 258, ["yellow"] = 259, ["blue"] = 260, ["magenta"] = 261, ["cyan"] = 262,
-  ["bright grey"] = 263, ["bright gray"] = 263, ["black"] = 264,
-  ["bright red"] = 265, ["bright green"] = 266, ["bright yellow"] = 267, ["bright blue"] = 268,
-  ["bright magenta"] = 269, ["bright cyan"] = 270, ["white"] = 271, ["grey"] = 272, ["gray"] = 272
+  ["red"]            = 257,
+  ["green"]          = 258,
+  ["yellow"]         = 259,
+  ["blue"]           = 260,
+  ["magenta"]        = 261,
+  ["cyan"]           = 262,
+  ["bright grey"]    = 263,
+  ["bright gray"]    = 263,
+  ["black"]          = 264,
+  ["bright red"]     = 265,
+  ["bright green"]   = 266,
+  ["bright yellow"]  = 267,
+  ["bright blue"]    = 268,
+  ["bright magenta"] = 269,
+  ["bright cyan"]    = 270,
+  ["white"]          = 271,
+  ["grey"]           = 272,
+  ["gray"]           = 272
 }
 
 local roomID = getPlayerRoom()
@@ -63,9 +77,16 @@ end</script>
 				<Alias isActive="yes" isFolder="no">
 					<name>setDoor</name>
 					<script>local convertExit = {
-  ["north"] = "n", ["northeast"] = "ne", ["east"] = "e", ["southeast"] = "se",
-  ["south"] = "s", ["southwest"] = "sw", ["west"] = "w", ["northwest"] = "nw"
-} --allows us to convert long directions into short directions
+  ["north"]     = "n",
+  ["northeast"] = "ne",
+  ["east"]      = "e",
+  ["southeast"] = "se",
+  ["south"]     = "s",
+  ["southwest"] = "sw",
+  ["west"]      = "w",
+  ["northwest"] = "nw"
+}
+
 local exitCommand = {
   ["n"] = true, ["ne"] = true, ["e"] = true, ["se"] = true,
   ["s"] = true, ["sw"] = true, ["w"] = true, ["nw"] = true

@@ -83,7 +83,7 @@ tempLineTrigger(0, 2, [[deleteLine()]]) --delete the current line and the next l
 				<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 					<name>echoRemoteExchange_Commodity</name>
 					<script>--puts the Commodity name into the exchange window
-local basePrice = FEDUI.CommoditiesBasePrice[matches[2]] or "???"
+local basePrice = FEDUI.commoditiesBasePrice[matches[2]] or "???"
 FEDUI.overflowWindow:echo("+++\n")
 FEDUI.overflowWindow:cecho('&lt;ansiYellow&gt;' .. matches[2] .. ' (base ' .. basePrice ..'):\n')
 deleteLine()
@@ -108,7 +108,7 @@ tempLineTrigger(1,1, [[if getCurrentLine() == "" then deleteLine() end]]) --if t
 				<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 					<name>echoLocalExchange_Commodity</name>
 					<script>--puts the Commodity name into the exchange window
-local basePrice = FEDUI.CommoditiesBasePrice[matches[2]] or "???"
+local basePrice = FEDUI.commoditiesBasePrice[matches[2]] or "???"
 FEDUI.overflowWindow:echo("+++\n")
 FEDUI.overflowWindow:cecho('&lt;ansiYellow&gt;' .. matches[2] .. ' (base ' .. basePrice ..'):\n')
 deleteLine()
@@ -254,10 +254,10 @@ FEDUI.combineLoc = table.concat(FEDUI.combineLoc)   --smush the alphabetized pla
 
 -- If out of Sol, dont try to calculate gtu
 if gmcp.room.info.system == "Sol" then
-  FEDUI.calcTime = FEDUI.SolDistances[FEDUI.combineLoc] --use that to get the actual time between startLoc and destLoc
-  --SolDistances table is found in the MagicNumbers script file
+  FEDUI.calcTime = FEDUI.solDistances[FEDUI.combineLoc] --use that to get the actual time between startLoc and destLoc
+
   if tonumber(FEDUI.calcTime) &gt; tonumber(FEDUI.jobTime) then      --you don't have enough time to deliver without penalties
-  --we're just not gonna do anything here
+    --we're just not gonna do anything here
   elseif tonumber(FEDUI.calcTime) &lt; tonumber(FEDUI.jobTime) then  --you can deliver faster than allocated time and may receive bonuses
     FEDUI.haulingWindow:cechoLink("&lt;blue&gt;&lt;u&gt;" .. jobNum .. "&lt;/u&gt;&lt;reset&gt;",function() send("ac " .. jobNum) end, "Accept job " .. jobNum, true)
     FEDUI.haulingWindow:cecho(" &lt;ansiCyan&gt;"..rpad(startLoc,8).."&lt;reset&gt; &gt; &lt;ansiCyan&gt;"..rpad(destLoc,8)..
@@ -322,7 +322,7 @@ local quantity = matches[5]
 local price = matches[6]
 
 -- Store the data
-table.insert(FEDUI.commerce.data, {
+table.insert(FEDUI.trading.data, {
   system = system,
   planet = planet,
   action = action,
@@ -330,7 +330,7 @@ table.insert(FEDUI.commerce.data, {
   price = tonumber(price)
 })
 
-FEDUI.commerce.lastLineWasPrice = true  -- Flag for blank line trigger
+FEDUI.trading.lastLineWasPrice = true  -- Flag for blank line trigger
 deleteLine()</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
@@ -351,14 +351,22 @@ deleteLine()</script>
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>cPriceCartelPrint</name>
-				<script>FEDUI.commerce = FEDUI.commerce or {}
+				<script>FEDUI.trading = FEDUI.trading or {}
 
-if not FEDUI.commerce.lastLineWasPrice or #FEDUI.commerce.data == 0 then 
-  FEDUI.commerce.lastLineWasPrice = false
+if not FEDUI.trading.lastLineWasPrice or #FEDUI.trading.data == 0 then 
+  FEDUI.trading.lastLineWasPrice = false
   return 
 end
 
-FEDUI.commerce.lastLineWasPrice = false
+FEDUI.trading.lastLineWasPrice = false
+
+-- If we're in profit search mode, process differently
+if FEDUI.trading.profitSearch and FEDUI.trading.profitSearch.active then
+  FEDUI.processProfitSearchResults()
+  FEDUI.trading.data = {}
+  deleteLine()
+  return
+end
 
 local function rpad(str, len)
   str = tostring(str)
@@ -370,10 +378,10 @@ local function rpad(str, len)
 end
 
 -- 1. PRE-CALCULATE BEST PRICES
-local bestBuyPrice = math.huge
+local bestBuyPrice  = math.huge
 local bestSellPrice = -1
 
-for _, item in ipairs(FEDUI.commerce.data) do
+for _, item in ipairs(FEDUI.trading.data) do
   if item.action == "selling" then -- Station sells, we BUY
     if item.price &lt; bestBuyPrice then bestBuyPrice = item.price end
   elseif item.action == "buying" then -- Station buys, we SELL
@@ -382,7 +390,7 @@ for _, item in ipairs(FEDUI.commerce.data) do
 end
 
 -- Sort by price
-table.sort(FEDUI.commerce.data, function(a, b)
+table.sort(FEDUI.trading.data, function(a, b)
   return a.price &lt; b.price
 end)
 
@@ -391,9 +399,10 @@ FEDUI.tradingWindow:cecho("&lt;white&gt;System    Planet        Action  Qty   Pr
 FEDUI.tradingWindow:cecho("&lt;white&gt;──────────────────────────────────────────\n")
 
 -- Display each entry
-for _, item in ipairs(FEDUI.commerce.data) do
+for _, item in ipairs(FEDUI.trading.data) do
   -- Column A: Combined action + command
   local actionBtn
+
   if item.action == "buying" then
     actionBtn = "&lt;green&gt;[SELL]&lt;reset&gt;"
   else
@@ -405,6 +414,7 @@ for _, item in ipairs(FEDUI.commerce.data) do
   
   -- Clickable planet name (truncated to 13 chars)
   local planetDisplay = rpad(item.planet:sub(1, 13), 13)
+
   FEDUI.tradingWindow:cechoLink(
     "&lt;ansiCyan&gt;" .. planetDisplay .. "&lt;reset&gt;",
     function() send("whereis " .. item.planet) end,
@@ -418,14 +428,15 @@ for _, item in ipairs(FEDUI.commerce.data) do
   local cmd = (item.action == "buying") and "sell " or "buy "
   FEDUI.tradingWindow:cechoLink(
     actionBtn,
-    function() send(cmd .. FEDUI.commerce.currentCommodity) end,
-    cmd .. FEDUI.commerce.currentCommodity,
+    function() send(cmd .. FEDUI.trading.currentCommodity) end,
+    cmd .. FEDUI.trading.currentCommodity,
     true
   )
   
   FEDUI.tradingWindow:cecho(" " .. rpad(item.quantity, 5) .. " ")
   -- Highlight the price in green if it's the best price point
   local priceStr = rpad(item.price .. "ig", 6)
+
   if (item.action == "selling" and item.price == bestBuyPrice) or 
      (item.action == "buying" and item.price == bestSellPrice) then
     FEDUI.tradingWindow:cecho("&lt;green&gt;" .. priceStr .. "&lt;reset&gt;\n")
@@ -445,7 +456,7 @@ if bestBuyPrice ~= math.huge and bestSellPrice ~= -1 then
   end
 end
 
-FEDUI.tradingWindow:cecho("\n&lt;white&gt;" .. #FEDUI.commerce.data .. " exchanges" .. profitMsg .. "\n")</script>
+FEDUI.tradingWindow:cecho("\n&lt;white&gt;" .. #FEDUI.trading.data .. " exchanges" .. profitMsg .. "\n")</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -460,6 +471,35 @@ FEDUI.tradingWindow:cecho("\n&lt;white&gt;" .. #FEDUI.commerce.data .. " exchang
 					<string>^$</string>
 				</regexCodeList>
 				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>findBestProfitHide</name>
+				<script>-- If we're in profit search mode, hide command spam
+if FEDUI.trading.profitSearch and FEDUI.trading.profitSearch.active then
+  deleteLine()
+
+  return
+end</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand></mCommand>
+				<packageName></packageName>
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile></mSoundFile>
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^Your comm unit lights up as your brokers, Messrs Trum.*</string>
+					<string>^requested spot market p.*</string>
+					<string>.*is not currently trading in this commodity$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+					<integer>1</integer>
 					<integer>1</integer>
 				</regexCodePropertyList>
 			</Trigger>
